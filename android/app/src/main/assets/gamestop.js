@@ -7,14 +7,14 @@
     for (var i = 0; i < 16; i++) {
       document.querySelectorAll('a[href*="/products/"]').forEach(function (a) {
         var t = (a.getAttribute('aria-label') || a.innerText || a.getAttribute('title') || '').trim();
-        if (zsIsZeldaS2(t) || zsIsZeldaS2(a.href.replace(/-/g, ' '))) links[a.href.split('?')[0]] = t.split('\n')[0] || a.href;
+        if (zsIsConsole(t) || zsIsConsole(a.href.replace(/-/g, ' '))) links[a.href.split('?')[0]] = t.split('\n')[0] || a.href;
       });
       if (Object.keys(links).length && i > 4) break;
       await zsSleep(750);
     }
-    // Known Switch 2 Edition pages, in case search finds nothing.
-    links['https://www.gamestop.com/425554'] = links['https://www.gamestop.com/425554'] || 'BotW - Switch 2 Edition';
-    links['https://www.gamestop.com/424591'] = links['https://www.gamestop.com/424591'] || 'TotK - Switch 2 Edition';
+    if (!Object.keys(links).length) {
+      rows.push(zsRow('GameStop', 'search', 'online', 'NONE FOUND', 'no Zelda Switch 2 console in search results', location.href));
+    }
     for (var url of Object.keys(links).slice(0, 10)) {
       var name = links[url];
       try {
@@ -35,6 +35,7 @@
           } catch (e) {}
         });
         name = title || name;
+        if (!zsIsConsole(name)) continue;
         if (av === 'InStock') rows.push(zsRow('GameStop', name, 'online', 'IN STOCK', '$' + price, url));
         else if (/OutOfStock|SoldOut|Discontinued/.test(av || '')) rows.push(zsRow('GameStop', name, 'online', 'OUT OF STOCK', '$' + price, url));
         else if (av) rows.push(zsRow('GameStop', name, 'online', 'UNVERIFIED', av + ', $' + price, url));

@@ -9,18 +9,21 @@
       document.querySelectorAll('a[href*="/A-"]').forEach(function (a) {
         var m = a.getAttribute('href').match(/\/A-(\d+)/);
         var title = (a.getAttribute('aria-label') || a.innerText || '').trim();
-        if (m && zsIsZeldaS2(title) && !items[m[1]]) {
+        if (m && zsIsConsole(title) && !items[m[1]]) {
           var card = a.closest('[data-test*="product"], li, section') || a.parentElement;
-          items[m[1]] = { title: title.split('\n')[0], card: card ? card.innerText : '' };
+          var ctext = card ? card.innerText : '';
+          // Skip Target Plus marketplace listings (sold by another seller).
+          var sold = ctext.match(/sold (?:and shipped )?by ([^\n]+)/i);
+          if (sold && !/target/i.test(sold[1])) return;
+          items[m[1]] = { title: title.split('\n')[0], card: ctext };
         }
       });
       if (Object.keys(items).length && i > 4) break;
       await zsSleep(750);
     }
-    (P.extraTcins || []).forEach(function (t) { if (!items[t]) items[t] = { title: 'TCIN ' + t, card: '' }; });
     var tcins = Object.keys(items);
     if (!tcins.length) {
-      rows.push(zsRow('Target', 'search', 'online', 'NONE FOUND', 'no Zelda Switch 2 items on the search page', location.href));
+      rows.push(zsRow('Target', 'search', 'online', 'NONE FOUND', 'no Zelda Switch 2 console sold by Target on the search page', location.href));
       return zsFinish({ rows: rows });
     }
     // 2. Online signal straight from the product card text.

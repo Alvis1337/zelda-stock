@@ -9,11 +9,11 @@
       if (!el) await zsSleep(750);
     }
     if (!el) return zsFinish({ rows: [zsRow('Walmart', 'search', 'online', 'UNVERIFIED', 'no product data on page', location.href)] });
-    var data = JSON.parse(el.textContent), seen = {};
+    var data = JSON.parse(el.textContent), seen = {}, skipped = 0;
     (function walk(o, depth) {
       if (!o || typeof o !== 'object' || depth > 40) return;
       if (Array.isArray(o)) { o.forEach(function (x) { walk(x, depth + 1); }); return; }
-      if (typeof o.name === 'string' && zsIsZeldaS2(o.name) &&
+      if (typeof o.name === 'string' && zsIsConsole(o.name) &&
           (o.availabilityStatusV2 || o.availabilityStatusDisplayValue) && !seen[o.name]) {
         seen[o.name] = 1;
         var st = (o.availabilityStatusV2 && (o.availabilityStatusV2.value || o.availabilityStatusV2.display)) ||
@@ -28,16 +28,17 @@
         })(o.fulfillmentBadgeGroups || o.fulfillmentBadges || null, 0);
         var up = String(st).toUpperCase().replace(/\s+/g, '_');
         var status = up === 'IN_STOCK' ? 'IN STOCK' : (/OUT/.test(up) ? 'OUT OF STOCK' : 'UNVERIFIED');
-        var third = !/^walmart/i.test(seller);
+        // Walmart's own listings only: skip marketplace sellers (scalpers).
+        if (!/^walmart/i.test(seller)) { skipped++; return; }
         var url = o.canonicalUrl ? 'https://www.walmart.com' + o.canonicalUrl : location.href;
         rows.push(zsRow('Walmart', o.name, 'online', status,
-          st + ', $' + price + ', sold by ' + seller + (third ? ' (3rd party: check the price)' : '') +
+          st + ', $' + price + ', sold by ' + seller +
           (badges.length ? ' | ' + badges.join(', ') : ''), url));
         return;
       }
       Object.keys(o).forEach(function (k) { walk(o[k], depth + 1); });
     })(data, 0);
-    if (!rows.length) rows.push(zsRow('Walmart', 'search', 'online', 'NONE FOUND', 'no Zelda Switch 2 items found', location.href));
+    if (!rows.length) rows.push(zsRow('Walmart', 'search', 'online', 'NONE FOUND', 'no Zelda Switch 2 console sold by Walmart' + (skipped ? ' (' + skipped + ' marketplace listings hidden)' : ''), location.href));
     zsFinish({ rows: rows });
   } catch (e) {
     zsFinish({ rows: rows.concat([zsRow('Walmart', '-', '-', 'ERROR', String(e), location.href)]) });

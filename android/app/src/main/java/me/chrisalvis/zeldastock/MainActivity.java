@@ -46,7 +46,6 @@ import java.util.List;
  */
 public class MainActivity extends Activity {
 
-    private static final String[] DEFAULT_TCINS = {"1013322047", "1013559065"};
     private static final long JOB_TIMEOUT_MS = 60_000;
     private static final long SETTLE_MS = 2_500;
 
@@ -88,14 +87,14 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(Color.parseColor("#F6F7F9"));
 
         TextView title = new TextView(this);
-        title.setText("Zelda Switch 2 stock");
+        title.setText("Zelda Switch 2 console stock");
         title.setTextSize(22);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setTextColor(Color.parseColor("#1B2733"));
         root.addView(title);
 
         TextView sub = new TextView(this);
-        sub.setText("Target (store stock by ZIP), Walmart and GameStop (online). Best Buy is off for now.");
+        sub.setText("Consoles only, sold by the retailer itself (no marketplace sellers). Target store stock by ZIP; Walmart and GameStop online. Best Buy is off for now.");
         sub.setTextSize(13);
         sub.setTextColor(Color.parseColor("#5B6B7B"));
         sub.setPadding(0, dp(2), 0, dp(10));
@@ -272,7 +271,6 @@ public class MainActivity extends Activity {
         try {
             params.put("zips", zips);
             params.put("radius", Integer.parseInt(radius));
-            params.put("extraTcins", new JSONArray(Arrays.asList(DEFAULT_TCINS)));
         } catch (Exception e) { statusText.setText("Bad input: " + e); return; }
 
         String common = asset("common.js");
@@ -281,13 +279,13 @@ public class MainActivity extends Activity {
         resultsBox.removeAllViews();
         queue.clear();
         queue.add(new Job("Target",
-                "https://www.target.com/s?searchTerm=nintendo+switch+2+zelda",
+                "https://www.target.com/s?searchTerm=nintendo+switch+2+zelda+console",
                 prefix + common + asset("target.js")));
         queue.add(new Job("Walmart",
-                "https://www.walmart.com/search?q=nintendo+switch+2+zelda",
+                "https://www.walmart.com/search?q=nintendo+switch+2+zelda+console",
                 prefix + common + asset("walmart.js")));
         queue.add(new Job("GameStop",
-                "https://www.gamestop.com/search/?q=zelda+switch+2&lang=default",
+                "https://www.gamestop.com/search/?q=zelda+switch+2+console&lang=default",
                 prefix + common + asset("gamestop.js")));
         runButton.setEnabled(false);
         nextJob();

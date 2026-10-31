@@ -9,6 +9,13 @@ window.zsIsZeldaS2 = function (s) {
   s = (s || '').toLowerCase();
   return s.indexOf('zelda') >= 0 && /switch\s*2|switch™\s*2/.test(s);
 };
+// Consoles only: no games, upgrade packs, accessories, or used/refurbished units.
+window.zsIsConsole = function (s) {
+  s = (s || '').toLowerCase();
+  if (!zsIsZeldaS2(s)) return false;
+  if (/controller|joy-?con|case|screen protector|amiibo|upgrade pack|restored|refurb|pre-?owned|used|renewed|digital|download|game card/.test(s)) return false;
+  return /console|system|bundle|40th anniversary edition/.test(s);
+};
 window.zsRow = function (retailer, product, where, status, detail, url) {
   return { retailer: retailer, product: product || '-', where: where || '-',
            status: status, detail: detail || '', url: url || '' };
