@@ -1,36 +1,37 @@
 package me.chrisalvis.zeldastock;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
+import android.os.PowerManager;
+import android.provider.Settings;
+import android.text.Editable;
 import android.text.InputType;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.webkit.CookieManager;
-import android.webkit.JavascriptInterface;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
+import android.view.WindowInsets;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,171 +39,328 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * Checks Target, Walmart and GameStop for Legend of Zelda Switch 2 stock.
+ * Zelda 40th Anniversary Switch 2 stock checker.
  *
- * Each retailer is loaded in a real WebView on the phone's own connection, and a
- * script reads the retailer's own data from that page. A row is shown as IN STOCK
- * only when that data says so; blocks and anything unclear show as UNVERIFIED.
+ * Only the 40th Anniversary console sold by the retailer itself is reported, and
+ * a row says IN STOCK only when the retailer's own data says so.
  */
 public class MainActivity extends Activity {
 
-    private static final long JOB_TIMEOUT_MS = 60_000;
-    private static final long SETTLE_MS = 2_500;
+    private static final int REQ_LOCATION = 1, REQ_NOTIFY = 2;
+    private static final Integer[] INTERVALS = {5, 10, 15, 30, 60};
 
-    private static final class Job {
-        final String retailer, url, script;
-        Job(String retailer, String url, String script) {
-            this.retailer = retailer; this.url = url; this.script = script;
-        }
-    }
+    private static final int INK = Color.parseColor("#17212B");
+    private static final int MUTED = Color.parseColor("#5B6B7B");
+    private static final int BG = Color.parseColor("#F3F5F8");
+    private static final int ACCENT = Color.parseColor("#2E7D32");
 
-    private final Handler main = new Handler(Looper.getMainLooper());
-    private final List<Job> queue = new ArrayList<>();
-    private final List<JSONObject> rows = new ArrayList<>();
-    private Job current;
-    private int jobSeq = 0;
-    private boolean scriptStarted;
-
-    private WebView web;
-    private EditText zipsInput, radiusInput;
-    private Button runButton, browserButton;
-    private TextView statusText;
-    private LinearLayout resultsBox;
     private SharedPreferences prefs;
+    private StockChecker checker;
+
+    private LinearLayout root, resultsBox;
+    private TextView statusText, zipLabel, updateText, batteryText;
+    private EditText zipInput, radiusInput;
+    private Switch locationSwitch, watchSwitch;
+    private Spinner intervalSpinner;
+    private Button checkButton, browserButton, updateButton, batteryButton;
+    private LinearLayout updateCard;
+    private Updater.Info pendingUpdate;
+    private boolean bindingUi;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        prefs = getSharedPreferences("zs", MODE_PRIVATE);
+        prefs = Results.prefs(this);
+        Results.createChannels(this);
+        checker = new StockChecker(this, false);
         buildUi();
+        showSaved();
+        if (prefs.getBoolean("use_location", true)) refreshLocation(false);
+        if (prefs.getBoolean("watching", false)) WatchService.start(this);
+        checkForUpdate();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        WatchService.onRunFinished = () -> runOnUiThread(this::showSaved);
+        refreshBatteryRow();
+        showSaved();
+    }
+
+    @Override
+    protected void onPause() {
+        WatchService.onRunFinished = null;
+        super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        checker.destroy();
+        super.onDestroy();
     }
 
     // ------------------------------------------------------------------ UI
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
 
+    private TextView text(String s, int sizeSp, int color, boolean bold) {
+        TextView t = new TextView(this);
+        t.setText(s);
+        t.setTextSize(sizeSp);
+        t.setTextColor(color);
+        if (bold) t.setTypeface(Typeface.DEFAULT_BOLD);
+        return t;
+    }
+
+    private LinearLayout card() {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setPadding(dp(16), dp(14), dp(16), dp(14));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(dp(14));
+        c.setBackground(bg);
+        c.setElevation(dp(1));
+        return c;
+    }
+
+    private void addCard(LinearLayout parent, View card) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, dp(6), 0, dp(6));
+        parent.addView(card, lp);
+    }
+
+    private LinearLayout row() {
+        LinearLayout r = new LinearLayout(this);
+        r.setOrientation(LinearLayout.HORIZONTAL);
+        r.setGravity(Gravity.CENTER_VERTICAL);
+        return r;
+    }
+
+    private LinearLayout.LayoutParams weight(float w) {
+        return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, w);
+    }
+
     private void buildUi() {
-        LinearLayout root = new LinearLayout(this);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setBackgroundColor(BG);
+        root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(16), dp(32), dp(16), dp(8));
-        root.setBackgroundColor(Color.parseColor("#F6F7F9"));
+        scroll.addView(root);
 
-        TextView title = new TextView(this);
-        title.setText("Zelda 40th Anniversary Switch 2");
-        title.setTextSize(22);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setTextColor(Color.parseColor("#1B2733"));
-        root.addView(title);
+        // Keep content clear of the status bar, nav bar and keyboard (edge-to-edge on Android 15).
+        scroll.setOnApplyWindowInsetsListener((v, insets) -> {
+            int top, bottom, left, right;
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets i = insets.getInsets(
+                        WindowInsets.Type.systemBars() | WindowInsets.Type.ime() | WindowInsets.Type.displayCutout());
+                top = i.top; bottom = i.bottom; left = i.left; right = i.right;
+            } else {
+                top = insets.getSystemWindowInsetTop(); bottom = insets.getSystemWindowInsetBottom();
+                left = insets.getSystemWindowInsetLeft(); right = insets.getSystemWindowInsetRight();
+            }
+            root.setPadding(left + dp(16), top + dp(12), right + dp(16), bottom + dp(16));
+            return insets;
+        });
 
-        TextView sub = new TextView(this);
-        sub.setText("Only the Zelda 40th Anniversary (Ocarina of Time) console, sold by the retailer itself (no marketplace sellers). Target store stock by ZIP; Walmart and GameStop online. Best Buy is off for now.");
-        sub.setTextSize(13);
-        sub.setTextColor(Color.parseColor("#5B6B7B"));
-        sub.setPadding(0, dp(2), 0, dp(10));
+        root.addView(text("Zelda 40th Anniversary", 24, INK, true));
+        TextView sub = text("Nintendo Switch 2 console only, sold by the retailer itself. "
+                + "Target store stock near you; Walmart and GameStop online.", 13, MUTED, false);
+        sub.setPadding(0, dp(2), 0, dp(8));
         root.addView(sub);
 
-        LinearLayout inputs = new LinearLayout(this);
-        inputs.setOrientation(LinearLayout.HORIZONTAL);
-        zipsInput = new EditText(this);
-        zipsInput.setHint("ZIP codes");
-        zipsInput.setText(prefs.getString("zips", "45701 45780 43130"));
-        zipsInput.setInputType(InputType.TYPE_CLASS_TEXT);
-        inputs.addView(zipsInput, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 3));
-        radiusInput = new EditText(this);
-        radiusInput.setHint("miles");
-        radiusInput.setText(prefs.getString("radius", "50"));
-        radiusInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-        inputs.addView(radiusInput, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        root.addView(inputs);
+        // Update banner (hidden until an update is found).
+        updateCard = card();
+        updateText = text("", 14, INK, true);
+        updateCard.addView(updateText);
+        updateButton = new Button(this);
+        updateButton.setText("Download and install");
+        updateButton.setOnClickListener(v -> startUpdate());
+        updateCard.addView(updateButton);
+        updateCard.setVisibility(View.GONE);
+        addCard(root, updateCard);
 
-        LinearLayout buttons = new LinearLayout(this);
-        buttons.setOrientation(LinearLayout.HORIZONTAL);
-        runButton = new Button(this);
-        runButton.setText("Check stock");
-        runButton.setOnClickListener(v -> startRun());
-        buttons.addView(runButton, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        // Search area.
+        LinearLayout area = card();
+        area.addView(text("Search area", 16, INK, true));
+        LinearLayout locRow = row();
+        locRow.addView(text("Use my current location", 15, INK, false), weight(1));
+        locationSwitch = new Switch(this);
+        locationSwitch.setChecked(prefs.getBoolean("use_location", true));
+        locationSwitch.setOnCheckedChangeListener((b, on) -> {
+            if (bindingUi) return;
+            prefs.edit().putBoolean("use_location", on).apply();
+            zipInput.setEnabled(!on);
+            if (on) refreshLocation(true);
+        });
+        locRow.addView(locationSwitch);
+        area.addView(locRow);
+        zipLabel = text("", 13, MUTED, false);
+        area.addView(zipLabel);
+
+        LinearLayout inRow = row();
+        inRow.setPadding(0, dp(4), 0, 0);
+        zipInput = new EditText(this);
+        zipInput.setHint("ZIP");
+        zipInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+        zipInput.setText(prefs.getString("zip", "45701"));
+        zipInput.setEnabled(!locationSwitch.isChecked());
+        zipInput.addTextChangedListener(new SimpleWatcher(s -> {
+            if (s.matches("\\d{5}") && !locationSwitch.isChecked()) prefs.edit().putString("zip", s).apply();
+        }));
+        inRow.addView(zipInput, weight(1));
+        TextView within = text("within", 15, MUTED, false);
+        within.setPadding(dp(12), 0, dp(8), 0);
+        inRow.addView(within);
+        radiusInput = new EditText(this);
+        radiusInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+        radiusInput.setText(String.valueOf(prefs.getInt("radius", 50)));
+        radiusInput.setGravity(Gravity.CENTER);
+        radiusInput.addTextChangedListener(new SimpleWatcher(s -> {
+            try {
+                int r = Integer.parseInt(s);
+                if (r > 0 && r <= 250) prefs.edit().putInt("radius", r).apply();
+            } catch (NumberFormatException ignored) { }
+        }));
+        inRow.addView(radiusInput, new LinearLayout.LayoutParams(dp(72), ViewGroup.LayoutParams.WRAP_CONTENT));
+        inRow.addView(text(" miles", 15, MUTED, false));
+        area.addView(inRow);
+        addCard(root, area);
+
+        // Background watcher.
+        LinearLayout watch = card();
+        LinearLayout wRow = row();
+        LinearLayout wText = new LinearLayout(this);
+        wText.setOrientation(LinearLayout.VERTICAL);
+        wText.addView(text("Watch in background", 16, INK, true));
+        wText.addView(text("Notifies you the moment one shows up or a store restocks.", 13, MUTED, false));
+        wRow.addView(wText, weight(1));
+        watchSwitch = new Switch(this);
+        watchSwitch.setChecked(prefs.getBoolean("watching", false));
+        watchSwitch.setOnCheckedChangeListener((b, on) -> {
+            if (bindingUi) return;
+            if (on) enableWatcher(); else WatchService.stop(this);
+        });
+        wRow.addView(watchSwitch);
+        watch.addView(wRow);
+
+        LinearLayout iRow = row();
+        iRow.setPadding(0, dp(8), 0, 0);
+        iRow.addView(text("Check every", 15, INK, false), weight(1));
+        intervalSpinner = new Spinner(this);
+        List<String> labels = new ArrayList<>();
+        for (int m : INTERVALS) labels.add(m + " min");
+        ArrayAdapter<String> ad = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, labels);
+        intervalSpinner.setAdapter(ad);
+        int cur = Arrays.asList(INTERVALS).indexOf(prefs.getInt("interval_min", 10));
+        intervalSpinner.setSelection(cur < 0 ? 1 : cur);
+        intervalSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
+                if (prefs.getInt("interval_min", 10) == INTERVALS[pos]) return;
+                prefs.edit().putInt("interval_min", INTERVALS[pos]).apply();
+                if (prefs.getBoolean("watching", false)) WatchService.start(MainActivity.this);
+            }
+            @Override public void onNothingSelected(AdapterView<?> p) { }
+        });
+        iRow.addView(intervalSpinner);
+        watch.addView(iRow);
+
+        LinearLayout bRow = row();
+        bRow.setPadding(0, dp(6), 0, 0);
+        batteryText = text("", 13, MUTED, false);
+        bRow.addView(batteryText, weight(1));
+        batteryButton = new Button(this);
+        batteryButton.setText("Allow");
+        batteryButton.setOnClickListener(v -> askBatteryExemption());
+        bRow.addView(batteryButton);
+        watch.addView(bRow);
+        addCard(root, watch);
+
+        // Actions.
+        LinearLayout actions = row();
+        checkButton = new Button(this);
+        checkButton.setText("Check now");
+        checkButton.setOnClickListener(v -> checkNow());
+        actions.addView(checkButton, weight(1));
         browserButton = new Button(this);
         browserButton.setText("Show browser");
         browserButton.setOnClickListener(v -> toggleBrowser());
-        buttons.addView(browserButton, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        root.addView(buttons);
+        actions.addView(browserButton, weight(1));
+        root.addView(actions);
 
-        statusText = new TextView(this);
-        statusText.setTextSize(13);
-        statusText.setTextColor(Color.parseColor("#33414E"));
-        statusText.setPadding(0, dp(6), 0, dp(6));
-        statusText.setText("Tap Check stock.");
+        statusText = text("", 13, MUTED, false);
+        statusText.setPadding(dp(4), dp(4), dp(4), dp(4));
         root.addView(statusText);
 
-        web = new WebView(this);
-        setupWebView();
-        // Kept attached (1px) so pages run; "Show browser" enlarges it to solve a captcha.
-        root.addView(web, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1));
+        // Kept attached (1px) so pages run; "Show browser" enlarges it to solve a bot check.
+        root.addView(checker.getWebView(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1));
 
-        ScrollView scroll = new ScrollView(this);
         resultsBox = new LinearLayout(this);
         resultsBox.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(resultsBox);
-        root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        root.addView(resultsBox);
 
-        setContentView(root);
+        setContentView(scroll);
+        updateZipLabel();
+    }
+
+    private void updateZipLabel() {
+        String zip = prefs.getString("zip", "45701");
+        zipLabel.setText(locationSwitch.isChecked()
+                ? (LocationHelper.hasPermission(this) ? "Searching near ZIP " + zip : "Location permission needed")
+                : "Using the ZIP below");
+        if (locationSwitch.isChecked()) {
+            bindingUi = true;
+            zipInput.setText(zip);
+            bindingUi = false;
+        }
     }
 
     private void toggleBrowser() {
+        View web = checker.getWebView();
         ViewGroup.LayoutParams lp = web.getLayoutParams();
         boolean show = lp.height <= 1;
-        lp.height = show ? dp(420) : 1;
+        lp.height = show ? dp(480) : 1;
         web.setLayoutParams(lp);
         browserButton.setText(show ? "Hide browser" : "Show browser");
     }
 
-    private void addRow(JSONObject r) {
-        String status = r.optString("status");
-        int color;
-        switch (status) {
-            case "IN STOCK": color = Color.parseColor("#1E8E3E"); break;
-            case "OUT OF STOCK": color = Color.parseColor("#C5221F"); break;
-            case "NONE FOUND": color = Color.parseColor("#7A5A00"); break;
-            default: color = Color.parseColor("#5F6B7A");
-        }
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(12), dp(10), dp(12), dp(10));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.WHITE);
-        bg.setCornerRadius(dp(10));
-        bg.setStroke(dp(2), color);
-        card.setBackground(bg);
-
-        TextView head = new TextView(this);
-        head.setText(status + " · " + r.optString("retailer"));
-        head.setTypeface(Typeface.DEFAULT_BOLD);
-        head.setTextColor(color);
-        card.addView(head);
-
-        TextView prod = new TextView(this);
-        prod.setText(r.optString("product"));
-        prod.setTextColor(Color.parseColor("#1B2733"));
-        prod.setTextSize(15);
-        card.addView(prod);
-
-        TextView where = new TextView(this);
-        String detail = r.optString("detail");
-        where.setText(r.optString("where") + (detail.isEmpty() ? "" : "\n" + detail));
-        where.setTextColor(Color.parseColor("#5B6B7B"));
-        where.setTextSize(13);
-        card.addView(where);
-
-        final String url = r.optString("url");
-        if (!url.isEmpty()) {
-            card.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))));
-        }
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(0, dp(4), 0, dp(4));
-        resultsBox.addView(card, lp);
+    private void refreshBatteryRow() {
+        boolean exempt = getSystemService(PowerManager.class).isIgnoringBatteryOptimizations(getPackageName());
+        batteryText.setText(exempt
+                ? "Battery: unrestricted, so checks keep running with the screen off."
+                : "Battery saver may delay checks with the screen off.");
+        batteryButton.setVisibility(exempt ? View.GONE : View.VISIBLE);
     }
 
-    private void renderAll() {
+    private void askBatteryExemption() {
+        try {
+            startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:" + getPackageName())));
+        } catch (Exception e) {
+            startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+        }
+    }
+
+    // ------------------------------------------------------------- Results
+    private void showSaved() {
+        if (checker != null && checker.isRunning()) return;
+        List<JSONObject> rows = Results.load(this);
+        long at = prefs.getLong("last_checked", 0);
+        if (at > 0) {
+            int hits = 0;
+            for (JSONObject r : rows) if ("IN STOCK".equals(r.optString("status"))) hits++;
+            statusText.setText((hits > 0 ? hits + " in stock" : "None in stock") + " near "
+                    + prefs.getString("last_zip", "?") + " · last checked "
+                    + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(at)));
+        } else {
+            statusText.setText("No checks yet. Tap Check now.");
+        }
+        render(rows);
+    }
+
+    private void render(List<JSONObject> rows) {
         resultsBox.removeAllViews();
         List<String> order = Arrays.asList("IN STOCK", "OUT OF STOCK", "NONE FOUND", "UNVERIFIED", "MANUAL", "ERROR");
         List<JSONObject> sorted = new ArrayList<>(rows);
@@ -210,149 +368,167 @@ public class MainActivity extends Activity {
             int ia = order.indexOf(a.optString("status")), ib = order.indexOf(b.optString("status"));
             return Integer.compare(ia < 0 ? 99 : ia, ib < 0 ? 99 : ib);
         });
-        for (JSONObject r : sorted) addRow(r);
+        for (JSONObject r : sorted) addResult(r);
     }
 
-    // ------------------------------------------------------------- WebView
-    private void setupWebView() {
-        WebSettings s = web.getSettings();
-        s.setJavaScriptEnabled(true);
-        s.setDomStorageEnabled(true);
-        s.setLoadWithOverviewMode(true);
-        s.setUseWideViewPort(true);
-        // Present as regular mobile Chrome rather than an embedded WebView.
-        s.setUserAgentString(s.getUserAgentString().replace("; wv", "").replace("Version/4.0 ", ""));
-        CookieManager.getInstance().setAcceptCookie(true);
-        CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
-        web.addJavascriptInterface(new Bridge(), "ZS");
-        web.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                if (current == null || scriptStarted) return;
-                final int seq = jobSeq;
-                main.postDelayed(() -> {
-                    if (seq == jobSeq && current != null && !scriptStarted) injectScript();
-                }, SETTLE_MS);
+    private void addResult(JSONObject r) {
+        String status = r.optString("status");
+        int color;
+        switch (status) {
+            case "IN STOCK": color = ACCENT; break;
+            case "OUT OF STOCK": color = Color.parseColor("#C62828"); break;
+            case "NONE FOUND": color = Color.parseColor("#8D6E00"); break;
+            default: color = Color.parseColor("#607080");
+        }
+        LinearLayout c = card();
+        GradientDrawable bg = (GradientDrawable) c.getBackground();
+        bg.setStroke(dp(2), color);
+        TextView head = text(status + " · " + r.optString("retailer"), 13, color, true);
+        c.addView(head);
+        String product = r.optString("product");
+        if (!product.isEmpty() && !"-".equals(product)) c.addView(text(product, 15, INK, false));
+        String where = r.optString("where"), detail = r.optString("detail");
+        StringBuilder sb = new StringBuilder();
+        if (!where.isEmpty() && !"-".equals(where)) sb.append(where);
+        if (!detail.isEmpty()) { if (sb.length() > 0) sb.append('\n'); sb.append(detail); }
+        if (sb.length() > 0) c.addView(text(sb.toString(), 13, MUTED, false));
+        final String url = r.optString("url");
+        if (!url.isEmpty()) c.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))));
+        addCard(resultsBox, c);
+    }
+
+    // ----------------------------------------------------------------- Run
+    private void checkNow() {
+        if (checker.isRunning()) return;
+        checkButton.setEnabled(false);
+        if (locationSwitch.isChecked() && LocationHelper.hasPermission(this)) {
+            statusText.setText("Finding your location…");
+            LocationHelper.currentZip(this, new LocationHelper.Callback() {
+                @Override public void onZip(String zip) {
+                    prefs.edit().putString("zip", zip).apply();
+                    updateZipLabel();
+                    runChecker(zip);
+                }
+                @Override public void onError(String message) {
+                    String zip = prefs.getString("zip", "45701");
+                    statusText.setText("Location: " + message + ". Using " + zip + ".");
+                    runChecker(zip);
+                }
+            });
+        } else {
+            String zip = zipInput.getText().toString().trim();
+            if (!zip.matches("\\d{5}")) {
+                statusText.setText("Enter a 5-digit ZIP.");
+                checkButton.setEnabled(true);
+                return;
+            }
+            prefs.edit().putString("zip", zip).apply();
+            runChecker(zip);
+        }
+    }
+
+    private void runChecker(String zip) {
+        int radius = prefs.getInt("radius", 50);
+        resultsBox.removeAllViews();
+        checker.run(zip, radius, new StockChecker.Listener() {
+            @Override public void onProgress(String retailer) {
+                statusText.setText("Checking " + retailer + " near " + zip + " (" + radius + " mi)…");
+            }
+            @Override public void onDone(List<JSONObject> rows) {
+                Results.saveAndNotify(MainActivity.this, rows, zip);
+                checkButton.setEnabled(true);
+                showSaved();
             }
         });
     }
 
-    private final class Bridge {
-        @JavascriptInterface
-        public void done(final String jobId, final String json) {
-            main.post(() -> onJobResult(jobId, json));
-        }
-    }
-
-    private String asset(String name) {
-        try (InputStream in = getAssets().open(name)) {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] buf = new byte[8192];
-            int n;
-            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-            return out.toString(StandardCharsets.UTF_8.name());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    // ----------------------------------------------------------------- Run
-    private void startRun() {
-        String zipsRaw = zipsInput.getText().toString().trim();
-        String radius = radiusInput.getText().toString().trim();
-        if (radius.isEmpty()) radius = "50";
-        prefs.edit().putString("zips", zipsRaw).putString("radius", radius).apply();
-
-        JSONArray zips = new JSONArray();
-        for (String z : zipsRaw.split("[\\s,]+")) if (z.matches("\\d{5}")) zips.put(z);
-        if (zips.length() == 0) { statusText.setText("Enter at least one 5-digit ZIP."); return; }
-
-        JSONObject params = new JSONObject();
-        try {
-            params.put("zips", zips);
-            params.put("radius", Integer.parseInt(radius));
-        } catch (Exception e) { statusText.setText("Bad input: " + e); return; }
-
-        String common = asset("common.js");
-        String prefix = "var ZS_PARAMS = " + params + ";\n";
-        rows.clear();
-        resultsBox.removeAllViews();
-        queue.clear();
-        queue.add(new Job("Target",
-                "https://www.target.com/s?searchTerm=nintendo+switch+2+zelda+40th+anniversary+edition",
-                prefix + common + asset("target.js")));
-        queue.add(new Job("Walmart",
-                "https://www.walmart.com/search?q=nintendo+switch+2+zelda+40th+anniversary+edition",
-                prefix + common + asset("walmart.js")));
-        queue.add(new Job("GameStop",
-                "https://www.gamestop.com/search/?q=switch+2+zelda+40th+anniversary&lang=default",
-                prefix + common + asset("gamestop.js")));
-        runButton.setEnabled(false);
-        nextJob();
-    }
-
-    private void nextJob() {
-        if (queue.isEmpty()) {
-            current = null;
-            runButton.setEnabled(true);
-            int hits = 0;
-            for (JSONObject r : rows) if ("IN STOCK".equals(r.optString("status"))) hits++;
-            statusText.setText(hits + " verified in-stock result(s) · checked "
-                    + DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date()));
-            renderAll();
+    // ---------------------------------------------------------- Permissions
+    private void refreshLocation(boolean ask) {
+        if (!LocationHelper.hasPermission(this)) {
+            if (ask || !prefs.getBoolean("asked_location", false)) {
+                prefs.edit().putBoolean("asked_location", true).apply();
+                requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION,
+                        Manifest.permission.ACCESS_FINE_LOCATION}, REQ_LOCATION);
+            }
+            updateZipLabel();
             return;
         }
-        current = queue.remove(0);
-        jobSeq++;
-        scriptStarted = false;
-        final int seq = jobSeq;
-        final Job job = current;
-        statusText.setText("Checking " + job.retailer + "…");
-        web.loadUrl(job.url);
-        main.postDelayed(() -> {
-            if (seq == jobSeq && current == job) {
-                rows.add(row(job.retailer, "timed out after 60s (page never finished)", "UNVERIFIED", job.url));
-                renderAll();
-                nextJob();
+        zipLabel.setText("Finding your location…");
+        LocationHelper.currentZip(this, new LocationHelper.Callback() {
+            @Override public void onZip(String zip) {
+                prefs.edit().putString("zip", zip).apply();
+                updateZipLabel();
             }
-        }, JOB_TIMEOUT_MS);
+            @Override public void onError(String message) {
+                zipLabel.setText("Location: " + message + ". Using " + prefs.getString("zip", "45701") + ".");
+            }
+        });
     }
 
-    private void injectScript() {
-        scriptStarted = true;
-        String js = "var ZS_JOB = '" + jobSeq + "';\n" + current.script;
-        web.evaluateJavascript(js, null);
-    }
-
-    private void onJobResult(String jobId, String json) {
-        if (current == null || !jobId.equals(String.valueOf(jobSeq))) return;
-        Job job = current;
-        try {
-            JSONObject res = new JSONObject(json);
-            if (res.optBoolean("blocked")) {
-                rows.add(row(job.retailer,
-                        "bot check shown. Tap Show browser, solve it, then Check stock again.",
-                        "UNVERIFIED", job.url));
-            }
-            JSONArray rs = res.optJSONArray("rows");
-            if (rs != null) for (int i = 0; i < rs.length(); i++) rows.add(rs.getJSONObject(i));
-        } catch (Exception e) {
-            rows.add(row(job.retailer, "could not read result: " + e.getMessage(), "ERROR", job.url));
+    private void enableWatcher() {
+        if (Build.VERSION.SDK_INT >= 33 && !Results.canNotify(this)) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFY);
+            return;
         }
-        renderAll();
-        nextJob();
+        WatchService.start(this);
+        statusText.setText("Watcher on. It checks every " + prefs.getInt("interval_min", 10) + " min.");
     }
 
-    private static JSONObject row(String retailer, String detail, String status, String url) {
-        JSONObject o = new JSONObject();
-        try {
-            o.put("retailer", retailer);
-            o.put("product", "-");
-            o.put("where", "-");
-            o.put("status", status);
-            o.put("detail", detail);
-            o.put("url", url);
-        } catch (Exception ignored) { }
-        return o;
+    @Override
+    public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
+        boolean granted = results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED;
+        if (code == REQ_LOCATION) {
+            if (granted) refreshLocation(false);
+            else {
+                bindingUi = true;
+                locationSwitch.setChecked(false);
+                bindingUi = false;
+                prefs.edit().putBoolean("use_location", false).apply();
+                zipInput.setEnabled(true);
+                updateZipLabel();
+            }
+        } else if (code == REQ_NOTIFY) {
+            if (granted) enableWatcher();
+            else {
+                bindingUi = true;
+                watchSwitch.setChecked(false);
+                bindingUi = false;
+                statusText.setText("The watcher needs notification permission to alert you.");
+            }
+        }
+    }
+
+    // --------------------------------------------------------------- Update
+    private void checkForUpdate() {
+        Updater.check((info, err) -> {
+            if (info == null) return;
+            pendingUpdate = info;
+            updateText.setText("Update available: " + info.tag + " (you have v" + BuildConfig.VERSION_NAME + ")");
+            updateCard.setVisibility(View.VISIBLE);
+        });
+    }
+
+    private void startUpdate() {
+        if (pendingUpdate == null) return;
+        updateButton.setEnabled(false);
+        Updater.download(this, pendingUpdate, new Updater.DownloadCallback() {
+            @Override public void onProgress(int pct) { updateButton.setText("Downloading " + pct + "%"); }
+            @Override public void onDone(java.io.File apk, String error) {
+                updateButton.setEnabled(true);
+                if (apk == null) { updateButton.setText("Retry (" + error + ")"); return; }
+                updateButton.setText("Install");
+                updateButton.setOnClickListener(v -> Updater.install(MainActivity.this, apk));
+                Updater.install(MainActivity.this, apk);
+            }
+        });
+    }
+
+    private static final class SimpleWatcher implements TextWatcher {
+        interface On { void changed(String s); }
+        private final On on;
+        SimpleWatcher(On on) { this.on = on; }
+        @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
+        @Override public void onTextChanged(CharSequence s, int a, int b, int c) { }
+        @Override public void afterTextChanged(Editable s) { on.changed(s.toString().trim()); }
     }
 }
