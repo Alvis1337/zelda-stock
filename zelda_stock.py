@@ -16,6 +16,7 @@ Usage (stdlib only, Python 3.8+):
   python3 zelda_stock.py --zip 45701 43130 --radius 40
   BESTBUY_API_KEY=xxxx python3 zelda_stock.py     # enables Best Buy (free key: developer.bestbuy.com)
   python3 zelda_stock.py --target-tcin 12345678   # add more Target item ids
+  python3 zelda_stock.py --skip bestbuy        # leave retailers out
   python3 zelda_stock.py --debug                  # dump raw responses when parsing fails
 """
 import argparse
@@ -258,6 +259,9 @@ def main():
     ap.add_argument("--zip", nargs="+", default=DEFAULT_ZIPS)
     ap.add_argument("--radius", type=int, default=50, help="miles")
     ap.add_argument("--target-tcin", nargs="*", default=[])
+    ap.add_argument("--skip", nargs="*", default=[],
+                    choices=["bestbuy", "target", "gamestop", "walmart"],
+                    help="retailers to leave out")
     ap.add_argument("--debug", action="store_true")
     a = ap.parse_args()
     DEBUG = a.debug
@@ -266,6 +270,8 @@ def main():
                      (check_target, (a.zip, a.radius, TARGET_TCINS + a.target_tcin)),
                      (check_gamestop, ()),
                      (check_walmart, (a.zip,))):
+        if fn.__name__.replace("check_", "") in a.skip:
+            continue
         try:
             fn(*args)
         except Exception as e:
