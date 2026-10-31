@@ -1,46 +1,38 @@
-// Runs on https://www.walmart.com/search?q=... inside the app's WebView.
+// Runs on the Walmart product page for the console (item 21002656445).
+// Counts only Walmart's own offer; a marketplace seller in the buy box is a scalper.
 (async function () {
-  var rows = [];
+  var ITEM = '21002656445', url = 'https://www.walmart.com/ip/' + ITEM;
+  var NAME = 'Nintendo Switch 2 – The Legend of Zelda 40th Anniversary Edition';
   try {
-    var el = null;
+    var el = null, problem = null;
     for (var i = 0; i < 20 && !el; i++) {
-      if (zsBlocked()) return zsFinish({ blocked: true, rows: [] });
+      problem = zsPageProblem();
+      if (problem === 'bot check') return zsFinish({ blocked: true, rows: [] });
       el = document.getElementById('__NEXT_DATA__');
       if (!el) await zsSleep(750);
     }
-    if (!el) return zsFinish({ rows: [zsRow('Walmart', 'search', 'online', 'UNVERIFIED', 'no product data on page', location.href)] });
-    var data = JSON.parse(el.textContent), seen = {}, skipped = 0;
-    (function walk(o, depth) {
-      if (!o || typeof o !== 'object' || depth > 40) return;
-      if (Array.isArray(o)) { o.forEach(function (x) { walk(x, depth + 1); }); return; }
-      if (typeof o.name === 'string' && zsIsConsole(o.name) &&
-          (o.availabilityStatusV2 || o.availabilityStatusDisplayValue) && !seen[o.name]) {
-        seen[o.name] = 1;
-        var st = (o.availabilityStatusV2 && (o.availabilityStatusV2.value || o.availabilityStatusV2.display)) ||
-                 o.availabilityStatusDisplayValue || 'unknown';
-        var price = (o.priceInfo && o.priceInfo.currentPrice && o.priceInfo.currentPrice.price) || o.price || '?';
-        var seller = o.sellerName || 'unknown seller';
-        var badges = [];
-        (function b(x, d) {
-          if (!x || typeof x !== 'object' || d > 6) return;
-          if (typeof x.text === 'string' && /pickup|delivery|shipping|today|tomorrow/i.test(x.text)) badges.push(x.text);
-          Object.keys(x).forEach(function (k) { b(x[k], d + 1); });
-        })(o.fulfillmentBadgeGroups || o.fulfillmentBadges || null, 0);
-        var up = String(st).toUpperCase().replace(/\s+/g, '_');
-        var status = up === 'IN_STOCK' ? 'IN STOCK' : (/OUT/.test(up) ? 'OUT OF STOCK' : 'UNVERIFIED');
-        // Walmart's own listings only: skip marketplace sellers (scalpers).
-        if (!/^walmart/i.test(seller)) { skipped++; return; }
-        var url = o.canonicalUrl ? 'https://www.walmart.com' + o.canonicalUrl : location.href;
-        rows.push(zsRow('Walmart', o.name, 'online', status,
-          st + ', $' + price + ', sold by ' + seller +
-          (badges.length ? ' | ' + badges.join(', ') : ''), url));
-        return;
-      }
-      Object.keys(o).forEach(function (k) { walk(o[k], depth + 1); });
-    })(data, 0);
-    if (!rows.length) rows.push(zsRow('Walmart', 'search', 'online', 'NONE FOUND', 'no Zelda 40th Anniversary console sold by Walmart' + (skipped ? ' (' + skipped + ' marketplace listings hidden)' : ''), location.href));
+    if (!el) return zsFinish({ rows: [zsRow('Walmart', NAME, 'online', 'UNVERIFIED', (problem || 'no product data') + ' on ' + zsPageLabel(), url)] });
+    var data = JSON.parse(el.textContent), prod = null;
+    try { prod = data.props.pageProps.initialData.data.product; } catch (e) {}
+    if (!prod || !prod.availabilityStatus) {
+      (function walk(o, d) {
+        if ((prod && prod.availabilityStatus) || !o || typeof o !== 'object' || d > 40) return;
+        if (String(o.usItemId) === ITEM && o.availabilityStatus) { prod = o; return; }
+        Object.keys(o).forEach(function (k) { walk(o[k], d + 1); });
+      })(data, 0);
+    }
+    if (!prod || !prod.availabilityStatus)
+      return zsFinish({ rows: [zsRow('Walmart', NAME, 'online', 'UNVERIFIED', 'could not find the product data on ' + zsPageLabel(), url)] });
+    var st = String(prod.availabilityStatus).toUpperCase();
+    var seller = prod.sellerName || prod.sellerDisplayName || 'unknown seller';
+    var price = (prod.priceInfo && prod.priceInfo.currentPrice && prod.priceInfo.currentPrice.price) || '?';
+    var walmart = /^walmart/i.test(seller);
+    var rows = [];
+    if (st === 'IN_STOCK' && walmart) rows.push(zsRow('Walmart', prod.name || NAME, 'online', 'IN STOCK', 'sold by ' + seller + ', $' + price, url));
+    else if (st === 'IN_STOCK') rows.push(zsRow('Walmart', prod.name || NAME, 'online', 'OUT OF STOCK', 'Walmart itself is sold out; only marketplace seller ' + seller + ' at $' + price, url));
+    else rows.push(zsRow('Walmart', prod.name || NAME, 'online', 'OUT OF STOCK', st.toLowerCase().replace(/_/g, ' ') + (walmart ? '' : ' (buy box: ' + seller + ')'), url));
     zsFinish({ rows: rows });
   } catch (e) {
-    zsFinish({ rows: rows.concat([zsRow('Walmart', '-', '-', 'ERROR', String(e), location.href)]) });
+    zsFinish({ rows: [zsRow('Walmart', NAME, '-', 'ERROR', String(e), url)] });
   }
 })();

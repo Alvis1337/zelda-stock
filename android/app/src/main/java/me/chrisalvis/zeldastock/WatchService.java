@@ -31,7 +31,7 @@ public class WatchService extends Service {
     public static final String ACTION_CHECK = "check";
     public static final String ACTION_STOP = "stop";
     private static final int ONGOING_ID = 1;
-    private static final long UPDATE_EVERY_MS = 6 * 60 * 60 * 1000L;
+    private static final long UPDATE_EVERY_MS = 60 * 60 * 1000L;
 
     /** Lets an open MainActivity refresh when a background run finishes. */
     public static volatile Runnable onRunFinished;

@@ -23,6 +23,8 @@
     }
     var tcins = Object.keys(items);
     if (!tcins.length) {
+      var pr = zsPageProblem();
+      if (pr) return zsFinish({ rows: [zsRow('Target', 'search', 'online', 'UNVERIFIED', pr + ' on ' + zsPageLabel(), location.href)] });
       rows.push(zsRow('Target', 'search', 'online', 'NONE FOUND', 'no Zelda 40th Anniversary console sold by Target on the search page', location.href));
       return zsFinish({ rows: rows });
     }

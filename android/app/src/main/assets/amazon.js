@@ -1,54 +1,36 @@
-// Runs on https://www.amazon.com/s?k=... inside the app's WebView.
-// Only listings shipped and sold by Amazon.com count; marketplace sellers are hidden.
+// Runs on the Amazon product page for the console (ASIN B0HJ6F8L6V).
+// Counts only an offer sold by Amazon.com; marketplace sellers are scalpers.
 (async function () {
-  var rows = [];
+  var ASIN = 'B0HJ6F8L6V', url = 'https://www.amazon.com/dp/' + ASIN;
+  var NAME = 'Nintendo Switch 2 – The Legend of Zelda 40th Anniversary Edition';
+  var txt = function (sel) { var e = document.querySelector(sel); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; };
   try {
-    if (zsBlocked() || document.querySelector('form[action*="validateCaptcha"]')) return zsFinish({ blocked: true, rows: [] });
-    var items = {};
-    for (var i = 0; i < 16; i++) {
-      document.querySelectorAll('[data-component-type="s-search-result"][data-asin]').forEach(function (el) {
-        var asin = el.getAttribute('data-asin');
-        var t = el.querySelector('h2');
-        var title = t ? t.innerText.trim() : '';
-        if (asin && zsIsConsole(title) && !items[asin]) items[asin] = title;
-      });
-      if (Object.keys(items).length && i > 3) break;
-      await zsSleep(750);
+    var title = '', problem = null;
+    for (var i = 0; i < 20 && !title; i++) {
+      problem = zsPageProblem();
+      if (document.querySelector('form[action*="validateCaptcha"]')) problem = 'bot check';
+      if (problem === 'bot check') return zsFinish({ blocked: true, rows: [] });
+      title = txt('#productTitle') || txt('#title');
+      if (!title) await zsSleep(750);
     }
-    var asins = Object.keys(items).slice(0, 6), hidden = 0;
-    for (var a of asins) {
-      var url = 'https://www.amazon.com/dp/' + a;
-      try {
-        var r = await fetch(url, { credentials: 'include' });
-        var doc = new DOMParser().parseFromString(await r.text(), 'text/html');
-        if (doc.querySelector('form[action*="validateCaptcha"]')) { rows.push(zsRow('Amazon', items[a], 'online', 'UNVERIFIED', 'bot check on product page', url)); continue; }
-        var txt = function (sel) { var e = doc.querySelector(sel); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; };
-        // Seller name only (not "Ships from"): a marketplace seller can ship from Amazon.
-        var seller = txt('#merchantInfoFeature_feature_div .offer-display-feature-text') || txt('#sellerProfileTriggerId');
-        if (!seller) {
-          var m = (txt('#tabular-buybox') + ' ' + txt('#merchant-info')).match(/sold by\s+(.+?)(?:\s+and\b|\s+returns\b|\s+payment\b|\.|$)/i);
-          seller = m ? m[1].trim() : '';
-        }
-        var avail = txt('#availability');
-        var cart = !!doc.querySelector('#add-to-cart-button, #buy-now-button');
-        var price = txt('#corePrice_feature_div .a-offscreen') || txt('.a-price .a-offscreen');
-        var byAmazon = /^amazon(\.com)?\b/i.test(seller);
-        if (!seller && /unavailable|out of stock/i.test(avail)) {
-          rows.push(zsRow('Amazon', items[a], 'online', 'OUT OF STOCK', avail + ' (no seller listed)', url));
-          continue;
-        }
-        if (!byAmazon) { if (seller || cart) hidden++; continue; }
-        var status = cart && !/unavailable|out of stock/i.test(avail) ? 'IN STOCK'
-                   : (/unavailable|out of stock/i.test(avail) || !cart ? 'OUT OF STOCK' : 'UNVERIFIED');
-        rows.push(zsRow('Amazon', items[a], 'online', status, (avail || 'no availability text') + (price ? ', ' + price : '') + ', sold by Amazon', url));
-      } catch (e) {
-        rows.push(zsRow('Amazon', items[a], 'online', 'UNVERIFIED', String(e), url));
-      }
+    if (!title) return zsFinish({ rows: [zsRow('Amazon', NAME, 'online', 'UNVERIFIED', (problem || 'product page did not load') + ' on ' + zsPageLabel(), url)] });
+    var avail = txt('#availability') || txt('#outOfStock') || '';
+    var cart = document.querySelector('#add-to-cart-button, #buy-now-button, input[name="submit.add-to-cart"]');
+    var seller = txt('#merchantInfoFeature_feature_div .offer-display-feature-text-message') ||
+                 txt('#merchantInfoFeature_feature_div .offer-display-feature-text') || txt('#sellerProfileTriggerId');
+    if (!seller) {
+      var m = (txt('#tabular-buybox') + ' ' + txt('#merchant-info') + ' ' + txt('#offer-display-features')).match(/sold by\s+(.+?)(?:\s+and\b|\s+returns\b|\s+payment\b|\.|$)/i);
+      seller = m ? m[1].trim() : '';
     }
-    if (!rows.length) rows.push(zsRow('Amazon', 'search', 'online', 'NONE FOUND',
-      'no Zelda 40th Anniversary console sold by Amazon' + (hidden ? ' (' + hidden + ' marketplace listings hidden)' : ''), location.href));
-    zsFinish({ rows: rows });
+    var price = txt('#corePrice_feature_div .a-offscreen') || txt('#apex_desktop .a-offscreen') || txt('.a-price .a-offscreen');
+    var byAmazon = /^amazon(\.com)?\b/i.test(seller);
+    var row;
+    if (!cart) row = zsRow('Amazon', NAME, 'online', 'OUT OF STOCK', (avail || 'no Add to Cart button'), url);
+    else if (byAmazon && !/unavailable|out of stock/i.test(avail)) row = zsRow('Amazon', NAME, 'online', 'IN STOCK', 'sold by Amazon' + (price ? ', ' + price : ''), url);
+    else if (seller && !byAmazon) row = zsRow('Amazon', NAME, 'online', 'OUT OF STOCK', 'Amazon itself is sold out; buy box is ' + seller + (price ? ' at ' + price : ''), url);
+    else row = zsRow('Amazon', NAME, 'online', 'UNVERIFIED', 'Add to Cart shown but seller unreadable' + (price ? ', ' + price : ''), url);
+    zsFinish({ rows: [row] });
   } catch (e) {
-    zsFinish({ rows: rows.concat([zsRow('Amazon', '-', '-', 'ERROR', String(e), location.href)]) });
+    zsFinish({ rows: [zsRow('Amazon', NAME, '-', 'ERROR', String(e), url)] });
   }
 })();

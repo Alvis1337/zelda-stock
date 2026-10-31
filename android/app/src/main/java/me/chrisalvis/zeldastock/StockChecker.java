@@ -134,13 +134,13 @@ public final class StockChecker {
         rows.clear();
         queue.clear();
         queue.add(new Job("Best Buy",
-                "https://www.bestbuy.com/site/searchpage.jsp?st=nintendo+switch+2+zelda+40th+anniversary+edition",
+                "https://www.bestbuy.com/product/switch-2-the-legend-of-zelda-40th-anniversary-edition/J7GSL57HTY",
                 prefix + asset("bestbuy.js")));
         queue.add(new Job("Target",
                 "https://www.target.com/s?searchTerm=nintendo+switch+2+zelda+40th+anniversary+edition",
                 prefix + asset("target.js")));
         queue.add(new Job("Walmart",
-                "https://www.walmart.com/search?q=nintendo+switch+2+zelda+40th+anniversary+edition",
+                "https://www.walmart.com/ip/21002656445",
                 prefix + asset("walmart.js")));
         queue.add(new Job("GameStop",
                 "https://www.gamestop.com/search/?q=switch+2+zelda+40th+anniversary&lang=default",
@@ -149,7 +149,7 @@ public final class StockChecker {
                 "https://www.nintendo.com/us/store/products/nintendo-switch-2-the-legend-of-zelda-40th-anniversary-edition-121642/",
                 prefix + asset("nintendo.js")));
         queue.add(new Job("Amazon",
-                "https://www.amazon.com/s?k=nintendo+switch+2+zelda+40th+anniversary+edition",
+                "https://www.amazon.com/dp/B0HJ6F8L6V",
                 prefix + asset("amazon.js")));
         nextJob();
     }

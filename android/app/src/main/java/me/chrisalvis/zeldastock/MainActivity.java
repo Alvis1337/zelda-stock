@@ -77,7 +77,6 @@ public class MainActivity extends Activity {
         showSaved();
         if (prefs.getBoolean("use_location", true)) refreshLocation(false);
         if (prefs.getBoolean("watching", false)) WatchService.start(this);
-        checkForUpdate();
     }
 
     @Override
@@ -86,6 +85,7 @@ public class MainActivity extends Activity {
         WatchService.onRunFinished = () -> runOnUiThread(this::showSaved);
         refreshBatteryRow();
         showSaved();
+        if (pendingUpdate == null && System.currentTimeMillis() - lastUpdateCheck > 60_000) checkForUpdate();
     }
 
     @Override
@@ -176,11 +176,10 @@ public class MainActivity extends Activity {
         updateText = text("", 14, INK, true);
         updateCard.addView(updateText);
         updateButton = new Button(this);
-        updateButton.setText("Download and install");
-        updateButton.setOnClickListener(v -> startUpdate());
+        updateButton.setOnClickListener(v -> onUpdateButton());
         updateCard.addView(updateButton);
-        updateCard.setVisibility(View.GONE);
         addCard(root, updateCard);
+        setUpdateUi("App v" + BuildConfig.VERSION_NAME, "Check for updates");
 
         // Search area.
         LinearLayout area = card();
@@ -529,28 +528,60 @@ public class MainActivity extends Activity {
     }
 
     // --------------------------------------------------------------- Update
+    private java.io.File downloadedApk;
+    private long lastUpdateCheck;
+
+    private void setUpdateUi(String status, String button) {
+        updateText.setText(status);
+        updateButton.setText(button);
+    }
+
     private void checkForUpdate() {
+        lastUpdateCheck = System.currentTimeMillis();
+        setUpdateUi("App v" + BuildConfig.VERSION_NAME + " · checking for updates…", "Check for updates");
+        updateButton.setEnabled(false);
         Updater.check((info, err) -> {
-            if (info == null) return;
-            pendingUpdate = info;
-            updateText.setText("Update available: " + info.tag + " (you have v" + BuildConfig.VERSION_NAME + ")");
-            updateCard.setVisibility(View.VISIBLE);
+            updateButton.setEnabled(true);
+            if (err != null) {
+                setUpdateUi("App v" + BuildConfig.VERSION_NAME + " · update check failed: " + err, "Try again");
+            } else if (info == null) {
+                setUpdateUi("App v" + BuildConfig.VERSION_NAME + " · up to date", "Check for updates");
+            } else {
+                pendingUpdate = info;
+                setUpdateUi("Update available: " + info.tag + " (you have v" + BuildConfig.VERSION_NAME + ")",
+                        "Download and install");
+            }
         });
     }
 
+    private void onUpdateButton() {
+        if (downloadedApk != null) { installDownloaded(); return; }
+        if (pendingUpdate != null) { startUpdate(); return; }
+        checkForUpdate();
+    }
+
     private void startUpdate() {
-        if (pendingUpdate == null) return;
         updateButton.setEnabled(false);
         Updater.download(this, pendingUpdate, new Updater.DownloadCallback() {
             @Override public void onProgress(int pct) { updateButton.setText("Downloading " + pct + "%"); }
             @Override public void onDone(java.io.File apk, String error) {
                 updateButton.setEnabled(true);
-                if (apk == null) { updateButton.setText("Retry (" + error + ")"); return; }
-                updateButton.setText("Install");
-                updateButton.setOnClickListener(v -> Updater.install(MainActivity.this, apk));
-                Updater.install(MainActivity.this, apk);
+                if (apk == null) {
+                    setUpdateUi("Download failed: " + error, "Retry download");
+                    return;
+                }
+                downloadedApk = apk;
+                installDownloaded();
             }
         });
+    }
+
+    private void installDownloaded() {
+        if (Updater.install(this, downloadedApk)) {
+            setUpdateUi("Installing " + pendingUpdate.tag + "… if nothing happened, tap Install.", "Install");
+        } else {
+            setUpdateUi("Allow \"Install unknown apps\" for Zelda Stock, come back, then tap Install.", "Install");
+        }
     }
 
     private static final class SimpleWatcher implements TextWatcher {
