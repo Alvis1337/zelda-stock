@@ -1,71 +1,51 @@
-// Runs on the Best Buy product page for the console (SKU 6691841).
+// Runs on Best Buy's own listing for the console: /site/6691841.p?skuId=6691841.
+// Reads what the page shows a shopper: which SKU and seller is displayed, the main
+// buy button, and the Pickup tile. Marketplace offers never count as in stock.
 (async function () {
-  var P = ZS_PARAMS, rows = [], SKU = '6691841', url = location.href.split('?')[0];
+  var SKU = '6691841', url = 'https://www.bestbuy.com/site/' + SKU + '.p?skuId=' + SKU;
   var NAME = 'Switch 2 – The Legend of Zelda 40th Anniversary Edition';
+  var rows = [];
+  var first = function (els) {
+    els = els.filter(Boolean);
+    els.sort(function (a, b) { return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1; });
+    return els[0] || null;
+  };
   try {
-    // 1. Online. Primary: Best Buy's own button-state API for this exact SKU.
-    // Fallback: the buy button scoped to this SKU (never a carousel item's button).
-    var verdict = null, detail = '', problem = null, api = null;
-    try {
-      var pb = await fetch('/api/3.0/priceBlocks?skus=' + SKU, { credentials: 'include', headers: { Accept: 'application/json' } });
-      if (pb.ok) {
-        (function walk(o, d) {
-          if (api || !o || typeof o !== 'object' || d > 8) return;
-          if (typeof o.buttonState === 'string') { api = o.buttonState.toUpperCase(); return; }
-          Object.keys(o).forEach(function (k) { walk(o[k], d + 1); });
-        })(await pb.json(), 0);
-      } else { detail = 'button API HTTP ' + pb.status; }
-    } catch (e) { detail = 'button API failed'; }
-    if (api) {
-      verdict = api === 'ADD_TO_CART' ? 'IN STOCK' : 'OUT OF STOCK';
-      detail = 'Best Buy says ' + api.toLowerCase().replace(/_/g, ' ');
-    }
-    for (var i = 0; i < 16 && !verdict; i++) {
+    var text = '', btn = null, problem = null;
+    for (var i = 0; i < 24; i++) {
       problem = zsPageProblem();
-      var el = document.querySelector('[data-sku-id="' + SKU + '"][data-button-state], [data-sku-id="' + SKU + '"] [data-button-state]');
-      var state = el ? (el.getAttribute('data-button-state') || '').toUpperCase() : '';
-      if (state === 'ADD_TO_CART') { verdict = 'IN STOCK'; detail = 'Add to Cart is live'; }
-      else if (state) { verdict = 'OUT OF STOCK'; detail = 'button: ' + state.toLowerCase().replace(/_/g, ' '); }
-      if (!verdict) await zsSleep(750);
+      if (problem === 'bot check') return zsFinish({ blocked: true, rows: [] });
+      text = document.body ? document.body.innerText : '';
+      // The main buy button is the first one on the page; carousels come later.
+      btn = first([zsFindButton(/^add to cart$/i), zsFindButton(/^(sold out|coming soon|check stores|unavailable[\s\S]*|get notified|notify me)$/i)]);
+      if (btn && /SKU/i.test(text)) break;
+      await zsSleep(750);
     }
-    if (!verdict) { verdict = 'UNVERIFIED'; detail = (problem || 'no stock signal for SKU ' + SKU) + ' on ' + zsPageLabel() + (detail ? '; ' + detail : ''); }
-    rows.push(zsRow('Best Buy', NAME, 'online', verdict, detail + ' (SKU ' + SKU + ')', url));
+    if (!btn) return zsFinish({ rows: [zsRow('Best Buy', NAME, 'online', 'UNVERIFIED', (problem || 'no buy button') + ' on ' + zsPageLabel(), url)] });
 
-    // 2. Store pickup near the ZIP, through the pickup API bestbuy.com uses.
-    var z = P.zips[0];
-    try {
-      var r = await fetch('/fulfillment/ispu/api/ispu/v2', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-          zipCode: z, showOnShelf: true, lookupInStoreQuantity: true, consolidated: true,
-          showOnlyOnShelf: false, showInStore: true, onlyBestBuyLocations: true,
-          pickupTypes: ['UPS_ACCESS_POINT', 'FEDEX_HAL'],
-          items: [{ sku: SKU, condition: null, quantity: 1, itemSeqNumber: '1', reservationToken: null,
-                    selectedServices: [], requiredAccessories: [], isTradeIn: false, isLeased: false }]
-        })
-      });
-      if (!r.ok) throw new Error('pickup lookup HTTP ' + r.status);
-      var j = await r.json(), ispu = j.ispu || j, names = {};
-      (ispu.locations || []).forEach(function (l) { names[l.id] = { name: l.name || ('store ' + l.id), dist: l.distance, city: l.city }; });
-      var item = (ispu.items || [])[0], locs = item && item.locations;
-      if (!locs) throw new Error('pickup lookup returned nothing readable');
-      var hit = false, counted = 0;
-      locs.forEach(function (l) {
-        var n = names[l.locationId] || { name: 'store ' + l.locationId };
-        var d = n.dist != null ? parseFloat(n.dist) : null;
-        if (d != null && d > P.radius) return;
-        counted++;
-        var q = Math.max((l.availability && l.availability.availablePickupQuantity) || 0,
-                         (l.inStoreAvailability && l.inStoreAvailability.availableInStoreQuantity) || 0);
-        if (q > 0) {
-          hit = true;
-          rows.push(zsRow('Best Buy', NAME, n.name + (d != null ? ' (' + d + ' mi)' : ''), 'IN STOCK', 'qty ' + q + ' for pickup' + (n.city ? ', ' + n.city : ''), url));
-        }
-      });
-      if (!hit) rows.push(zsRow('Best Buy', NAME, counted + ' stores within ' + P.radius + ' mi of ' + z, 'OUT OF STOCK', 'no pickup quantity at any store', url));
-    } catch (e) {
-      rows.push(zsRow('Best Buy', NAME, 'stores near ' + z, 'UNVERIFIED', String(e.message || e) + '. Use "Check stores" on the product page.', url));
+    var shown = (text.match(/SKU:?\s*(\d{6,9})/i) || [])[1];
+    var seller = (text.match(/sold\s*(?:&|and)\s*shipped\s*by\s*([^\n]+)/i) || [])[1];
+    var price = (text.match(/\$\s*([\d,]{3,6})\s*\.?\s*(\d{2})?/) || []);
+    var priceStr = price[1] ? '$' + price[1] + '.' + (price[2] || '00') : '';
+    var bText = (btn.innerText || '').trim();
+
+    if ((shown && shown !== SKU) || (seller && !/best\s*buy/i.test(seller))) {
+      rows.push(zsRow('Best Buy', NAME, 'online', 'OUT OF STOCK',
+        'Best Buy itself is sold out; page shows marketplace seller ' + (seller ? seller.trim() : 'SKU ' + shown) + (priceStr ? ' at ' + priceStr : ''), url));
+      return zsFinish({ rows: rows });
+    }
+    if (/^add to cart$/i.test(bText) && !zsDisabled(btn)) {
+      rows.push(zsRow('Best Buy', NAME, 'online', 'IN STOCK', 'Add to cart is live' + (priceStr ? ', ' + priceStr : '') + ' (SKU ' + SKU + ')', url));
+    } else {
+      rows.push(zsRow('Best Buy', NAME, 'online', 'OUT OF STOCK', 'button: ' + (bText || 'disabled') + ' (SKU ' + SKU + ')', url));
+    }
+
+    // Pickup tile: Best Buy fills it in for the store it picked for you.
+    var pm = text.match(/\bPickup\b\s*\n+([^\n]{2,80})(?:\n+([^\n]{2,80}))?/);
+    if (pm) {
+      var p = (pm[1] + ' ' + (pm[2] || '')).trim();
+      if (/unavailable|not available|sold out/i.test(p)) rows.push(zsRow('Best Buy', NAME, 'store pickup', 'OUT OF STOCK', 'Pickup: ' + p, url));
+      else if (/ready|today|tomorrow|pick up (at|in)|available at/i.test(p)) rows.push(zsRow('Best Buy', NAME, 'store pickup', 'IN STOCK', 'Pickup: ' + p, url));
     }
     zsFinish({ rows: rows });
   } catch (e) {

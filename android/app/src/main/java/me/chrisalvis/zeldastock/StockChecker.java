@@ -134,7 +134,7 @@ public final class StockChecker {
         rows.clear();
         queue.clear();
         queue.add(new Job("Best Buy",
-                "https://www.bestbuy.com/product/switch-2-the-legend-of-zelda-40th-anniversary-edition/J7GSL57HTY",
+                "https://www.bestbuy.com/site/6691841.p?skuId=6691841",
                 prefix + asset("bestbuy.js")));
         queue.add(new Job("Target",
                 "https://www.target.com/s?searchTerm=nintendo+switch+2+zelda+40th+anniversary+edition",
@@ -151,9 +151,23 @@ public final class StockChecker {
         queue.add(new Job("Nintendo",
                 "https://www.nintendo.com/us/store/products/nintendo-switch-2-the-legend-of-zelda-40th-anniversary-edition-121642/",
                 prefix + asset("nintendo.js")));
-        queue.add(new Job("Amazon",
-                "https://www.amazon.com/dp/B0HJ6F8L6V",
-                prefix + asset("amazon.js")));
+        // Amazon throws bot checks at frequent visits, so it runs at most every 10 min;
+        // in between, its last result is shown again.
+        if (System.currentTimeMillis() - amazonLast < AMAZON_EVERY_MS && amazonRows != null) {
+            String when = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
+                    .format(new java.util.Date(amazonLast));
+            for (JSONObject r : amazonRows) {
+                try {
+                    JSONObject c = new JSONObject(r.toString());
+                    c.put("detail", c.optString("detail") + " (checked " + when + "; Amazon runs every 10 min)");
+                    rows.add(c);
+                } catch (Exception ignored) { }
+            }
+        } else {
+            queue.add(new Job("Amazon",
+                    "https://www.amazon.com/dp/B0HJ6F8L6V",
+                    prefix + asset("amazon.js")));
+        }
         nextJob();
     }
 
@@ -185,20 +199,30 @@ public final class StockChecker {
         web.evaluateJavascript("var ZS_JOB = '" + jobSeq + "';\n" + current.script, null);
     }
 
+    private static final long AMAZON_EVERY_MS = 10 * 60 * 1000L;
+    private static long amazonLast;
+    private static List<JSONObject> amazonRows;
+
     private void onJobResult(String jobId, String json) {
         if (current == null || !jobId.equals(String.valueOf(jobSeq))) return;
         Job job = current;
+        int start = rows.size();
         try {
             JSONObject res = new JSONObject(json);
             if (res.optBoolean("blocked")) {
-                rows.add(Results.row(job.retailer, "-", "-", "UNVERIFIED",
-                        "bot check shown. Open the app, tap Show browser, solve it, then Check now.", job.url));
+                rows.add(Results.row(job.retailer, "-", "-", "UNVERIFIED", "Amazon".equals(job.retailer)
+                        ? "bot check. Sign in to Amazon under Fast checkout (signed-in visits rarely get one), or tap Show browser and solve it."
+                        : "bot check shown. Tap Show browser, solve it, then Check now.", job.url));
             }
             JSONArray rs = res.optJSONArray("rows");
             if (rs != null) for (int i = 0; i < rs.length(); i++) rows.add(rs.getJSONObject(i));
         } catch (Exception e) {
             rows.add(Results.row(job.retailer, "-", "-", "ERROR",
                     "could not read result: " + e.getMessage(), job.url));
+        }
+        if ("Amazon".equals(job.retailer)) {
+            amazonLast = System.currentTimeMillis();
+            amazonRows = new ArrayList<>(rows.subList(start, rows.size()));
         }
         nextJob();
     }
