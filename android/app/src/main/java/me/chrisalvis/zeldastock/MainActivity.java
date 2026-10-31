@@ -87,14 +87,14 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(Color.parseColor("#F6F7F9"));
 
         TextView title = new TextView(this);
-        title.setText("Zelda Switch 2 console stock");
+        title.setText("Zelda 40th Anniversary Switch 2");
         title.setTextSize(22);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setTextColor(Color.parseColor("#1B2733"));
         root.addView(title);
 
         TextView sub = new TextView(this);
-        sub.setText("Consoles only, sold by the retailer itself (no marketplace sellers). Target store stock by ZIP; Walmart and GameStop online. Best Buy is off for now.");
+        sub.setText("Only the Zelda 40th Anniversary (Ocarina of Time) console, sold by the retailer itself (no marketplace sellers). Target store stock by ZIP; Walmart and GameStop online. Best Buy is off for now.");
         sub.setTextSize(13);
         sub.setTextColor(Color.parseColor("#5B6B7B"));
         sub.setPadding(0, dp(2), 0, dp(10));
@@ -279,13 +279,13 @@ public class MainActivity extends Activity {
         resultsBox.removeAllViews();
         queue.clear();
         queue.add(new Job("Target",
-                "https://www.target.com/s?searchTerm=nintendo+switch+2+zelda+console",
+                "https://www.target.com/s?searchTerm=nintendo+switch+2+zelda+40th+anniversary+edition",
                 prefix + common + asset("target.js")));
         queue.add(new Job("Walmart",
-                "https://www.walmart.com/search?q=nintendo+switch+2+zelda+console",
+                "https://www.walmart.com/search?q=nintendo+switch+2+zelda+40th+anniversary+edition",
                 prefix + common + asset("walmart.js")));
         queue.add(new Job("GameStop",
-                "https://www.gamestop.com/search/?q=zelda+switch+2+console&lang=default",
+                "https://www.gamestop.com/search/?q=switch+2+zelda+40th+anniversary&lang=default",
                 prefix + common + asset("gamestop.js")));
         runButton.setEnabled(false);
         nextJob();

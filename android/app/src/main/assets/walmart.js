@@ -38,7 +38,7 @@
       }
       Object.keys(o).forEach(function (k) { walk(o[k], depth + 1); });
     })(data, 0);
-    if (!rows.length) rows.push(zsRow('Walmart', 'search', 'online', 'NONE FOUND', 'no Zelda Switch 2 console sold by Walmart' + (skipped ? ' (' + skipped + ' marketplace listings hidden)' : ''), location.href));
+    if (!rows.length) rows.push(zsRow('Walmart', 'search', 'online', 'NONE FOUND', 'no Zelda 40th Anniversary console sold by Walmart' + (skipped ? ' (' + skipped + ' marketplace listings hidden)' : ''), location.href));
     zsFinish({ rows: rows });
   } catch (e) {
     zsFinish({ rows: rows.concat([zsRow('Walmart', '-', '-', 'ERROR', String(e), location.href)]) });

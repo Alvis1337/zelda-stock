@@ -23,7 +23,7 @@
     }
     var tcins = Object.keys(items);
     if (!tcins.length) {
-      rows.push(zsRow('Target', 'search', 'online', 'NONE FOUND', 'no Zelda Switch 2 console sold by Target on the search page', location.href));
+      rows.push(zsRow('Target', 'search', 'online', 'NONE FOUND', 'no Zelda 40th Anniversary console sold by Target on the search page', location.href));
       return zsFinish({ rows: rows });
     }
     // 2. Online signal straight from the product card text.

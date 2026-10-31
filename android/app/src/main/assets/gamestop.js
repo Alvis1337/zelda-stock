@@ -13,7 +13,7 @@
       await zsSleep(750);
     }
     if (!Object.keys(links).length) {
-      rows.push(zsRow('GameStop', 'search', 'online', 'NONE FOUND', 'no Zelda Switch 2 console in search results', location.href));
+      rows.push(zsRow('GameStop', 'search', 'online', 'NONE FOUND', 'no Zelda 40th Anniversary console in search results', location.href));
     }
     for (var url of Object.keys(links).slice(0, 10)) {
       var name = links[url];
