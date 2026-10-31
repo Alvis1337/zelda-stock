@@ -46,8 +46,8 @@ import java.util.List;
  */
 public class MainActivity extends Activity {
 
-    private static final int REQ_LOCATION = 1, REQ_NOTIFY = 2;
-    private static final Integer[] INTERVALS = {5, 10, 15, 30, 60};
+    private static final int REQ_LOCATION = 1, REQ_NOTIFY = 2, REQ_NOTIFY_TEST = 3;
+    private static final Integer[] INTERVALS = {1, 2, 5, 10, 15, 30, 60};
 
     private static final int INK = Color.parseColor("#17212B");
     private static final int MUTED = Color.parseColor("#5B6B7B");
@@ -58,11 +58,11 @@ public class MainActivity extends Activity {
     private StockChecker checker;
 
     private LinearLayout root, resultsBox;
-    private TextView statusText, zipLabel, updateText, batteryText;
+    private TextView statusText, zipLabel, updateText, batteryText, exactText;
     private EditText zipInput, radiusInput;
     private Switch locationSwitch, watchSwitch;
     private Spinner intervalSpinner;
-    private Button checkButton, browserButton, updateButton, batteryButton;
+    private Button checkButton, browserButton, updateButton, batteryButton, exactButton;
     private LinearLayout updateCard;
     private Updater.Info pendingUpdate;
     private boolean bindingUi;
@@ -167,7 +167,7 @@ public class MainActivity extends Activity {
 
         root.addView(text("Zelda 40th Anniversary", 24, INK, true));
         TextView sub = text("Nintendo Switch 2 console only, sold by the retailer itself. "
-                + "Target store stock near you; Walmart and GameStop online.", 13, MUTED, false);
+                + "Best Buy and Target store stock near you; Walmart, GameStop, Nintendo and Amazon online.", 13, MUTED, false);
         sub.setPadding(0, dp(2), 0, dp(8));
         root.addView(sub);
 
@@ -255,7 +255,7 @@ public class MainActivity extends Activity {
         ArrayAdapter<String> ad = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, labels);
         intervalSpinner.setAdapter(ad);
         int cur = Arrays.asList(INTERVALS).indexOf(prefs.getInt("interval_min", 10));
-        intervalSpinner.setSelection(cur < 0 ? 1 : cur);
+        intervalSpinner.setSelection(cur < 0 ? 3 : cur);
         intervalSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
                 if (prefs.getInt("interval_min", 10) == INTERVALS[pos]) return;
@@ -276,6 +276,28 @@ public class MainActivity extends Activity {
         batteryButton.setOnClickListener(v -> askBatteryExemption());
         bRow.addView(batteryButton);
         watch.addView(bRow);
+
+        LinearLayout eRow = row();
+        eRow.setPadding(0, dp(2), 0, 0);
+        exactText = text("", 13, MUTED, false);
+        eRow.addView(exactText, weight(1));
+        exactButton = new Button(this);
+        exactButton.setText("Allow");
+        exactButton.setOnClickListener(v -> startActivity(new Intent(
+                Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + getPackageName()))));
+        eRow.addView(exactButton);
+        watch.addView(eRow);
+
+        Button test = new Button(this);
+        test.setText("Test alert");
+        test.setOnClickListener(v -> {
+            if (!Results.canNotify(this) && Build.VERSION.SDK_INT >= 33) {
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFY_TEST);
+            } else {
+                Results.testAlert(this);
+            }
+        });
+        watch.addView(test);
         addCard(root, watch);
 
         // Actions.
@@ -332,6 +354,12 @@ public class MainActivity extends Activity {
                 ? "Battery: unrestricted, so checks keep running with the screen off."
                 : "Battery saver may delay checks with the screen off.");
         batteryButton.setVisibility(exempt ? View.GONE : View.VISIBLE);
+        boolean exact = Build.VERSION.SDK_INT < 31
+                || getSystemService(android.app.AlarmManager.class).canScheduleExactAlarms();
+        exactText.setText(exact
+                ? "Timing: exact, so 1–2 min checks stay on schedule."
+                : "Timing: Android may stretch short intervals to ~10 min.");
+        exactButton.setVisibility(exact ? View.GONE : View.VISIBLE);
     }
 
     private void askBatteryExemption() {
@@ -487,6 +515,8 @@ public class MainActivity extends Activity {
                 zipInput.setEnabled(true);
                 updateZipLabel();
             }
+        } else if (code == REQ_NOTIFY_TEST) {
+            if (granted) Results.testAlert(this);
         } else if (code == REQ_NOTIFY) {
             if (granted) enableWatcher();
             else {

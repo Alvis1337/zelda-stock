@@ -67,7 +67,7 @@ public class WatchService extends Service {
     }
 
     private int intervalMin() {
-        return Math.max(5, Results.prefs(this).getInt("interval_min", 10));
+        return Math.max(1, Results.prefs(this).getInt("interval_min", 10));
     }
 
     private void goForeground(String text) {
@@ -149,8 +149,14 @@ public class WatchService extends Service {
 
     private void scheduleNext() {
         AlarmManager am = getSystemService(AlarmManager.class);
-        am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                SystemClock.elapsedRealtime() + intervalMin() * 60_000L, alarmIntent());
+        long at = SystemClock.elapsedRealtime() + intervalMin() * 60_000L;
+        // Exact alarms keep short intervals on time with the screen off; without the
+        // permission Android may stretch them to ~10 min in deep sleep.
+        if (Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()) {
+            am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, alarmIntent());
+        } else {
+            am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, alarmIntent());
+        }
     }
 
     private void cancelAlarm() {

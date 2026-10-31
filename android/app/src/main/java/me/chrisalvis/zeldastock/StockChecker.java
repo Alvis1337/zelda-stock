@@ -133,6 +133,9 @@ public final class StockChecker {
         String prefix = "var ZS_PARAMS = " + params + ";\n" + asset("common.js");
         rows.clear();
         queue.clear();
+        queue.add(new Job("Best Buy",
+                "https://www.bestbuy.com/site/searchpage.jsp?st=nintendo+switch+2+zelda+40th+anniversary+edition",
+                prefix + asset("bestbuy.js")));
         queue.add(new Job("Target",
                 "https://www.target.com/s?searchTerm=nintendo+switch+2+zelda+40th+anniversary+edition",
                 prefix + asset("target.js")));
@@ -142,6 +145,12 @@ public final class StockChecker {
         queue.add(new Job("GameStop",
                 "https://www.gamestop.com/search/?q=switch+2+zelda+40th+anniversary&lang=default",
                 prefix + asset("gamestop.js")));
+        queue.add(new Job("Nintendo",
+                "https://www.nintendo.com/us/store/products/nintendo-switch-2-the-legend-of-zelda-40th-anniversary-edition-121642/",
+                prefix + asset("nintendo.js")));
+        queue.add(new Job("Amazon",
+                "https://www.amazon.com/s?k=nintendo+switch+2+zelda+40th+anniversary+edition",
+                prefix + asset("amazon.js")));
         nextJob();
     }
 
