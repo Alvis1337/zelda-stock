@@ -46,7 +46,6 @@
         rows.push(zsRow('GameStop', name, 'online', 'UNVERIFIED', String(e), url));
       }
     }
-    rows.push(zsRow('GameStop', '-', 'store pickup', 'MANUAL', "open a product and tap 'Check other stores'", 'https://www.gamestop.com/search/?q=zelda+switch+2'));
     zsFinish({ rows: rows });
   } catch (e) {
     zsFinish({ rows: rows.concat([zsRow('GameStop', '-', '-', 'ERROR', String(e), location.href)]) });

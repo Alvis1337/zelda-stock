@@ -145,6 +145,9 @@ public final class StockChecker {
         queue.add(new Job("GameStop",
                 "https://www.gamestop.com/search/?q=switch+2+zelda+40th+anniversary&lang=default",
                 prefix + asset("gamestop.js")));
+        queue.add(new Job("GameStop",
+                "https://www.gamestop.com/consoles-hardware/nintendo-switch-2/products/nintendo-switch-2-the-legend-of-zelda-40th-anniversary-edition/20037854.html",
+                prefix + asset("gamestop_store.js")));
         queue.add(new Job("Nintendo",
                 "https://www.nintendo.com/us/store/products/nintendo-switch-2-the-legend-of-zelda-40th-anniversary-edition-121642/",
                 prefix + asset("nintendo.js")));
