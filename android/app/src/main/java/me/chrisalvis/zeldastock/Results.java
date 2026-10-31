@@ -81,7 +81,7 @@ public final class Results {
                 .putString("last_zip", zip)
                 .putStringSet("in_stock_keys", now)
                 .apply();
-        for (JSONObject r : fresh) notifyInStock(c, r);
+        for (JSONObject r : fresh) notifyInStock(c, r, true);
         return fresh.size();
     }
 
@@ -117,18 +117,24 @@ public final class Results {
     /** Fires a sample alert so the sound, vibration and tap-through can be checked. */
     public static void testAlert(Context c) {
         notifyInStock(c, row("Test", "Zelda 40th Anniversary console (test alert)", "this is only a test",
-                "IN STOCK", "Tap to open the Best Buy page. Real alerts look like this.",
-                "https://www.bestbuy.com/site/searchpage.jsp?st=nintendo+switch+2+zelda+40th+anniversary+edition"));
+                "IN STOCK", "Tap to open the Best Buy page. Real alerts open checkout and add one to your cart.",
+                "https://www.bestbuy.com/product/switch-2-the-legend-of-zelda-40th-anniversary-edition/J7GSL57HTY"), false);
     }
 
-    private static void notifyInStock(Context c, JSONObject r) {
+    /** True if alerts may pop checkout open on their own (lock screen / screen off). */
+    public static boolean canFullScreen(Context c) {
+        return Build.VERSION.SDK_INT < 34
+                || c.getSystemService(NotificationManager.class).canUseFullScreenIntent();
+    }
+
+    private static void notifyInStock(Context c, JSONObject r, boolean assist) {
         if (!canNotify(c)) return;
         createChannels(c);
         String url = r.optString("url");
+        // Tapping the alert opens the in-app checkout, which adds one to your cart.
         Intent open = url.isEmpty()
-                ? new Intent(c, MainActivity.class)
-                : new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-        open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ? new Intent(c, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                : CheckoutActivity.intent(c, url, r.optString("retailer"), assist);
         PendingIntent pi = PendingIntent.getActivity(c, key(r).hashCode(), open,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         String title = "In stock at " + r.optString("retailer") + ": " + r.optString("where");
@@ -142,6 +148,8 @@ public final class Results {
                 .setAutoCancel(true)
                 .setCategory(Notification.CATEGORY_ALARM)
                 .setVisibility(Notification.VISIBILITY_PUBLIC);
+        // With the screen off or locked, open checkout right away instead of waiting for a tap.
+        if (assist && !url.isEmpty() && canFullScreen(c)) b.setFullScreenIntent(pi, true);
         Notification n = b.build();
         n.flags |= Notification.FLAG_INSISTENT; // keeps ringing until you open or dismiss it
         c.getSystemService(NotificationManager.class).notify(key(r).hashCode(), n);

@@ -58,11 +58,11 @@ public class MainActivity extends Activity {
     private StockChecker checker;
 
     private LinearLayout root, resultsBox;
-    private TextView statusText, zipLabel, updateText, batteryText, exactText;
+    private TextView statusText, zipLabel, updateText, batteryText, exactText, fullText;
     private EditText zipInput, radiusInput;
     private Switch locationSwitch, watchSwitch;
     private Spinner intervalSpinner;
-    private Button checkButton, browserButton, updateButton, batteryButton, exactButton;
+    private Button checkButton, browserButton, updateButton, batteryButton, exactButton, fullButton;
     private LinearLayout updateCard;
     private Updater.Info pendingUpdate;
     private boolean bindingUi;
@@ -299,6 +299,47 @@ public class MainActivity extends Activity {
         watch.addView(test);
         addCard(root, watch);
 
+        // Sign in once so checkout has your saved card and address.
+        LinearLayout signin = card();
+        signin.addView(text("Fast checkout", 16, INK, true));
+        signin.addView(text("Sign in to each store once here. When the console shows up, the alert "
+                + "opens checkout, adds one to your cart (only at about MSRP and only from the store "
+                + "itself), and you confirm the payment.", 13, MUTED, false));
+        String[][] stores = {
+                {"Best Buy", "https://www.bestbuy.com/identity/global/signin"},
+                {"Target", "https://www.target.com/account"},
+                {"Walmart", "https://www.walmart.com/account/login"},
+                {"Amazon", "https://www.amazon.com/gp/css/homepage.html"},
+                {"Nintendo", "https://www.nintendo.com/us/"}};
+        LinearLayout sRow = null;
+        for (int i = 0; i < stores.length; i++) {
+            if (i % 3 == 0) { sRow = row(); signin.addView(sRow); }
+            final String[] st = stores[i];
+            Button sb = new Button(this);
+            sb.setText(st[0]);
+            sb.setAllCaps(false);
+            sb.setOnClickListener(v -> startActivity(CheckoutActivity.intent(this, st[1], st[0], false)));
+            sRow.addView(sb, weight(1));
+        }
+        LinearLayout fRow = row();
+        fRow.setPadding(0, dp(4), 0, 0);
+        fullText = text("", 13, MUTED, false);
+        fRow.addView(fullText, weight(1));
+        fullButton = new Button(this);
+        fullButton.setText("Allow");
+        fullButton.setOnClickListener(v -> {
+            try {
+                startActivity(new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                        Uri.parse("package:" + getPackageName())));
+            } catch (Exception e) {
+                startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + getPackageName())));
+            }
+        });
+        fRow.addView(fullButton);
+        signin.addView(fRow);
+        addCard(root, signin);
+
         // Actions.
         LinearLayout actions = row();
         checkButton = new Button(this);
@@ -359,6 +400,11 @@ public class MainActivity extends Activity {
                 ? "Timing: exact, so 1–2 min checks stay on schedule."
                 : "Timing: Android may stretch short intervals to ~10 min.");
         exactButton.setVisibility(exact ? View.GONE : View.VISIBLE);
+        boolean full = Results.canFullScreen(this);
+        fullText.setText(full
+                ? "Alerts can open checkout on the lock screen by themselves."
+                : "Allow alerts to open checkout on the lock screen without a tap.");
+        fullButton.setVisibility(full ? View.GONE : View.VISIBLE);
     }
 
     private void askBatteryExemption() {
@@ -420,7 +466,14 @@ public class MainActivity extends Activity {
         if (!detail.isEmpty()) { if (sb.length() > 0) sb.append('\n'); sb.append(detail); }
         if (sb.length() > 0) c.addView(text(sb.toString(), 13, MUTED, false));
         final String url = r.optString("url");
-        if (!url.isEmpty()) c.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))));
+        final String retailer = r.optString("retailer");
+        final boolean inStock = "IN STOCK".equals(status);
+        if (!url.isEmpty()) c.setOnClickListener(v ->
+                startActivity(CheckoutActivity.intent(this, url, retailer, inStock)));
+        if (inStock && !url.isEmpty()) {
+            TextView go = text("Tap to add one to your cart and check out", 13, ACCENT, true);
+            c.addView(go);
+        }
         addCard(resultsBox, c);
     }
 
