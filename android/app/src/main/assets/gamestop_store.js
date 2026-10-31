@@ -26,15 +26,30 @@
       if (!input) await zsSleep(500);
     }
     if (!input) return done('UNVERIFIED', 'stores near ' + z, 'store dialog did not open');
-    var dialog = input.closest('[role="dialog"], [aria-modal="true"], .modal, [class*="modal"], [class*="Modal"], [class*="drawer"]') || input.form || document.body;
+    // The whole "Check Store Availability" panel, not just the search form: the
+    // result box ("Sorry, no store within 100 miles…") sits below the form.
+    var dialog = input;
+    while (dialog.parentElement && dialog !== document.body &&
+           !/check store availability/i.test(dialog.innerText || '')) dialog = dialog.parentElement;
+    if (!/check store availability/i.test(dialog.innerText || '')) dialog = document.body;
+    var panelText = function () {
+      var t = dialog.innerText || '';
+      // Results can render outside the panel element; GameStop's own sentence is unique, so look page-wide for it.
+      var m = (document.body.innerText || '').match(/[^\n]*no store within \d+ miles of \d{5}[^\n]*(\n[^\n]*inventory[^\n]*)?/i);
+      return m && t.indexOf(m[0]) < 0 ? t + '\n' + m[0] : t;
+    };
 
     // GameStop usually answers right away for the location it detects. Wait for that.
     var text = '';
     var answered = function (t) { return /no store within \d+ miles|in stock|limited stock|\d+(\.\d+)?\s*mi\b/i.test(t); };
     for (var w = 0; w < 10; w++) {
       await zsSleep(700);
-      text = dialog.innerText || '';
+      text = panelText();
       if (answered(text)) break;
+    }
+    if (answered(text) && /no store within/i.test(text)) {
+      var early = text.replace(/\n/g, ' ').match(/no store within (\d+) miles of (\d{5})[^.]*inventory/i);
+      if (early) return done('OUT OF STOCK', 'stores within ' + early[1] + ' mi of ' + early[2], 'GameStop: no store currently has inventory' + (early[2] !== z ? ' (GameStop used ' + early[2] + ', near you)' : ''));
     }
     // Then ask for our ZIP the way a person would, so the site's own code sees it.
     var setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
@@ -43,7 +58,7 @@
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
     await zsSleep(400);
-    var before = dialog.innerText;
+    var before = panelText();
     var go = dialog.querySelector('button[type="submit"], [aria-label*="search" i], [title*="search" i]');
     if (!go) {
       // The search icon sits right after the box: take the next clickable element.
@@ -58,18 +73,19 @@
       input.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
     });
     if (go) go.click();
+    if (input.form) { try { input.form.requestSubmit ? input.form.requestSubmit() : input.form.submit(); } catch (e) { } }
     for (var k = 0; k < 20; k++) {
       await zsSleep(750);
-      var t2 = dialog.innerText || '';
+      var t2 = panelText();
       if (t2 !== before && answered(t2)) { text = t2; break; }
     }
-    var none = text.match(/no store within (\d+) miles of (\d{5})[^.]*inventory/i);
+    var none = text.replace(/\n/g, ' ').match(/no store within (\d+) miles of (\d{5})[^.]*inventory/i);
     if (none) {
       return done('OUT OF STOCK', 'stores within ' + none[1] + ' mi of ' + none[2], 'GameStop: no store currently has inventory' + (none[2] !== z ? ' (GameStop used ' + none[2] + ', near you)' : ''));
     }
     var lines = text.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
     var hits = [];
-    lines.forEach(function (l, idx) {
+    if (dialog !== document.body) lines.forEach(function (l, idx) {
       if (/^(in stock|limited stock|available)\b/i.test(l) || /\b(in stock|limited stock)\b/i.test(l)) {
         var name = lines.slice(Math.max(0, idx - 3), idx).join(' · ');
         hits.push(name + ' → ' + l);

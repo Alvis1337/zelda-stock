@@ -72,6 +72,15 @@ public final class StockChecker {
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
         web.addJavascriptInterface(new Bridge(), "ZS");
+        // Let sites like GameStop locate the nearest stores the way Chrome does
+        // (only when the app already has location permission).
+        s.setGeolocationEnabled(true);
+        web.setWebChromeClient(new android.webkit.WebChromeClient() {
+            @Override
+            public void onGeolocationPermissionsShowPrompt(String origin, android.webkit.GeolocationPermissions.Callback cb) {
+                cb.invoke(origin, LocationHelper.hasPermission(ctx), false);
+            }
+        });
         web.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
