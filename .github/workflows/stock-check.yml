@@ -1,0 +1,38 @@
+name: Zelda stock check
+
+on:
+  workflow_dispatch:
+    inputs:
+      zips:
+        description: "ZIP codes, space separated"
+        default: "45701 45780 43130"
+      radius:
+        description: "Radius in miles"
+        default: "50"
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 minutes
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run stock check
+        env:
+          BESTBUY_API_KEY: ${{ secrets.BESTBUY_API_KEY }}
+        run: |
+          set +e
+          python3 zelda_stock.py --zip ${{ inputs.zips || '45701 45780 43130' }} \
+            --radius ${{ inputs.radius || '50' }} | tee result.txt
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat result.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stock-result
+          path: result.txt
