@@ -29,7 +29,8 @@ Differences from the design:
   distributor (the ntfy app), sends its endpoint and Web Push keys to
   `POST /api/register`, and the server sends RFC 8291 encrypted messages
   (`web-push`). Endpoints live in `/data/subscriptions.json`; a 404/410 from the
-  distributor drops one. The plain ntfy topic stays as a backup channel.
+  distributor drops one. The ntfy topic is only a fallback (`PUSH_FALLBACK=ntfy`):
+  it is used when no phone is registered or the push to every phone failed.
 - The API is public only through Cloudflare Access app **Zelda Stock**
   (`zelda-stock.chrisalvis.me`): the service token `zelda-stock-app` plus the
   existing admin WARP/Google policies; anything else gets a 401/login redirect at
@@ -72,6 +73,10 @@ kubectl -n zelda-stock port-forward svc/zelda-stock-server 8080:8080 &
 TOKEN=$(kubectl -n zelda-stock get secret zelda-stock -o jsonpath='{.data.API_TOKEN}' | base64 -d)
 curl -X POST -H "Authorization: Bearer $TOKEN" localhost:8080/api/test-alert
 ```
+
+API from a laptop: `deploy/zs-api.sh GET /api/status` (port-forward + token).
+`POST /api/test-alert` takes `{"kind": "test" | "in_stock" | "blocked" | "recovered" | "heartbeat", "retailer", "url", "product"}`;
+`in_stock` is a simulated restock with checkout assist on. Phone tests: `docs/phone-test-plan.md`.
 
 New image: `kubectl -n zelda-stock rollout restart deploy/zelda-stock-server`
 (the Deployment runs `:latest` with `imagePullPolicy: Always`). ConfigMap and

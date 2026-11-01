@@ -25,7 +25,9 @@ export const config = {
   // Cloudflare Access in front of the public hostname: team domain and the app's AUD tag.
   cfAccessTeam: env.CF_ACCESS_TEAM || '',
   cfAccessAud: env.CF_ACCESS_AUD || '',
-  push: list(env.PUSH, 'ntfy'),
+  push: list(env.PUSH, 'up'),
+  // Used only when every PUSH channel failed or had nobody to send to.
+  pushFallback: list(env.PUSH_FALLBACK, 'ntfy'),
   fcmTopic: env.FCM_TOPIC || 'zelda-oot',
   ntfyUrl: (env.NTFY_URL || 'https://ntfy.sh').replace(/\/+$/, ''),
   ntfyTopic: env.NTFY_TOPIC || '',

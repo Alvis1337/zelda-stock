@@ -49,21 +49,29 @@ export function message(ev, at) {
   }
 }
 
-/** Sends one event on every configured channel. Returns { channel: 'ok' | error }. */
+async function sendOn(names, msg, out, prefix = '') {
+  for (const name of names) {
+    const ch = CHANNELS[name];
+    if (!ch) { out[prefix + name] = 'unknown channel'; continue; }
+    if (!ch.enabled()) { out[prefix + name] = 'not configured'; continue; }
+    try {
+      await ch.send(msg);
+      out[prefix + name] = 'ok';
+    } catch (e) {
+      out[prefix + name] = String(e.message || e);
+    }
+  }
+}
+
+/**
+ * Sends one event on every PUSH channel, and on PUSH_FALLBACK only if none of
+ * those delivered it. Returns { channel: 'ok' | error }.
+ */
 export async function notify(ev, at = new Date().toISOString()) {
   const msg = message(ev, at);
   const out = {};
-  for (const name of config.push) {
-    const ch = CHANNELS[name];
-    if (!ch) { out[name] = 'unknown channel'; continue; }
-    if (!ch.enabled()) { out[name] = 'not configured'; continue; }
-    try {
-      await ch.send(msg);
-      out[name] = 'ok';
-    } catch (e) {
-      out[name] = String(e.message || e);
-    }
-  }
+  await sendOn(config.push, msg, out);
+  if (!Object.values(out).includes('ok')) await sendOn(config.pushFallback, msg, out, 'fallback:');
   console.log(`push ${ev.type}: ${msg.title} ->`, JSON.stringify(out));
   return out;
 }

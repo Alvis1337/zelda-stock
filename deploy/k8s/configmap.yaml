@@ -10,8 +10,10 @@ data:
   SLOW_RETAILERS: "Amazon:10,Target:10,Best_Buy:10"
   HEARTBEAT_HOUR: "9"
   TZ: America/New_York
-  # up = UnifiedPush to the app (registered via /api/register); ntfy = the topic, as a backup.
-  PUSH: up,ntfy
+  # up = UnifiedPush to the app (registered via /api/register). The ntfy topic is used only
+  # when that fails or no phone is registered, so alerts normally arrive once.
+  PUSH: up
+  PUSH_FALLBACK: ntfy
   NTFY_URL: https://ntfy.sh
   FCM_TOPIC: zelda-oot
   # Cloudflare Access app "Zelda Stock" (zelda-stock.chrisalvis.me): the API accepts its signed JWT.

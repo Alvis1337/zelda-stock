@@ -177,10 +177,29 @@ const server = http.createServer(async (req, res) => {
         runOnce('manual').then(() => { if (!shuttingDown) schedule(jittered()); });
         return send(202, { started: true });
       case 'POST /api/test-alert': {
-        const r = row('Test', 'Zelda 40th Anniversary console (test alert)', 'this is only a test', 'IN STOCK',
-          'Sent by POST /api/test-alert. Real alerts open checkout and add one to your cart.',
-          'https://www.bestbuy.com/product/switch-2-the-legend-of-zelda-40th-anniversary-edition/J7GSL57HTY');
-        return send(200, { sent: await notify({ type: 'test', row: r, key: 'test' }) });
+        // kind "test" (default) only rings; "in_stock" is a simulated restock with checkout assist on,
+        // so point `url` at a cheap in-stock item; "blocked" / "recovered" / "heartbeat" test those.
+        const b = await readJson(req).catch(() => ({}));
+        const kind = b.kind || 'test';
+        const retailer = String(b.retailer || (kind === 'test' ? 'Test' : 'Best Buy'));
+        const url = String(b.url || 'https://www.bestbuy.com/product/switch-2-the-legend-of-zelda-40th-anniversary-edition/J7GSL57HTY');
+        let ev;
+        if (kind === 'test' || kind === 'in_stock') {
+          const r = row(retailer, String(b.product || 'Zelda 40th Anniversary console (test alert)'),
+            kind === 'in_stock' ? 'TEST: simulated restock' : 'this is only a test', 'IN STOCK',
+            kind === 'in_stock' ? 'Simulated by POST /api/test-alert; checkout assist is on.'
+              : 'Sent by POST /api/test-alert. Real alerts open checkout and add one to your cart.', url);
+          ev = { type: kind, row: r, key: `test|${retailer}` };
+        } else if (kind === 'blocked') {
+          ev = { type: 'blocked', retailer, detail: 'TEST: simulated by POST /api/test-alert', url };
+        } else if (kind === 'recovered') {
+          ev = { type: 'recovered', retailer };
+        } else if (kind === 'heartbeat') {
+          ev = { type: 'heartbeat', runs: 0, inStock: 0, unreadable: [] };
+        } else {
+          return send(400, { error: 'kind must be test, in_stock, blocked, recovered or heartbeat' });
+        }
+        return send(200, { kind, sent: await notify(ev) });
       }
       case 'POST /api/clear-cookies': {
         // Manual reset of one site's cookies in the server's browser (see deploy/clear-site-cookies.sh).
