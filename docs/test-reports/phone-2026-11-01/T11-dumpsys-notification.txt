@@ -1,0 +1,148 @@
+    NotificationRecord(0x0670644c: pkg=me.chrisalvis.zeldastock user=UserHandle{0} id=0 tag=0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection importance=3 key=0|me.chrisalvis.zeldastock|0|0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection|10483|0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection: Notification(channel=server shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=AUTO_CANCEL|LOCAL_ONLY|GROUP_SUMMARY|AUTOGROUP_SUMMARY|SILENT color=0x00000000 groupKey=0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection vis=PRIVATE))
+      uid=10483 userId=0
+      opPkg=me.chrisalvis.zeldastock
+      icon=Icon(typ=RESOURCE pkg=me.chrisalvis.zeldastock id=0x0108007c)
+      flags=AUTO_CANCEL|LOCAL_ONLY|GROUP_SUMMARY|AUTOGROUP_SUMMARY|SILENT
+      originalFlags=AUTO_CANCEL|LOCAL_ONLY|GROUP_SUMMARY|AUTOGROUP_SUMMARY
+      pri=0
+      key=0|me.chrisalvis.zeldastock|0|0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection|10483|0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection
+      seen=false
+      groupKey=0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection
+      notification=
+            fullscreenIntent=null
+            contentIntent=PendingIntent{b320c95: PendingIntentRecord{204d1cd me.chrisalvis.zeldastock startActivity}}
+            deleteIntent=null
+            number=0
+            groupAlertBehavior=2
+            when=1793555653039/1793555653039
+            tickerText=null
+            vis=0
+            contentView=null
+            bigContentView=null
+            headsUpContentView=null
+            color=0x00000000
+            timeout=PT0S
+            extras={
+                android.reduced.images=Boolean (true)
+                android.appInfo=ApplicationInfo (ApplicationInfo{462f1aa me.chrisalvis.zeldastock})
+                android.showWhen=Boolean (true)
+            }
+--
+    NotificationRecord(0x073ee19b: pkg=me.chrisalvis.zeldastock user=UserHandle{0} id=62550915 tag=null importance=3 key=0|me.chrisalvis.zeldastock|62550915|null|10483: Notification(channel=server shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=AUTO_CANCEL color=0x00000000 vis=PRIVATE))
+      uid=10483 userId=0
+      opPkg=me.chrisalvis.zeldastock
+      icon=Icon(typ=RESOURCE pkg=me.chrisalvis.zeldastock id=0x0108007c)
+      flags=AUTO_CANCEL
+      originalFlags=AUTO_CANCEL
+      pri=0
+      key=0|me.chrisalvis.zeldastock|62550915|null|10483
+      seen=false
+      groupKey=0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection
+      notification=
+            fullscreenIntent=null
+            contentIntent=PendingIntent{7657938: PendingIntentRecord{4a6124f me.chrisalvis.zeldastock startActivity (allowlist: 581711d:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+            deleteIntent=null
+            number=0
+            groupAlertBehavior=0
+            when=1793555666646/1793555666646
+            tickerText=null
+            vis=0
+            contentView=null
+            bigContentView=null
+            headsUpContentView=null
+            color=0x00000000
+            timeout=PT72H
+            extras={
+                android.title=String (Server alive: nothing in stock)
+                android.reduced.images=Boolean (true)
+                android.template=String (android.app.Notification$BigTextStyle)
+                android.text=String (Checked 0 times since the last heartbeat. Every retailer read normally.)
+--
+    NotificationRecord(0x0cd67e76: pkg=me.chrisalvis.zeldastock user=UserHandle{0} id=-45670177 tag=null importance=3 key=0|me.chrisalvis.zeldastock|-45670177|null|10483: Notification(channel=server shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=AUTO_CANCEL color=0x00000000 vis=PRIVATE))
+      uid=10483 userId=0
+      opPkg=me.chrisalvis.zeldastock
+      icon=Icon(typ=RESOURCE pkg=me.chrisalvis.zeldastock id=0x0108007c)
+      flags=AUTO_CANCEL
+      originalFlags=AUTO_CANCEL
+      pri=0
+      key=0|me.chrisalvis.zeldastock|-45670177|null|10483
+      seen=false
+      groupKey=0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection
+      notification=
+            fullscreenIntent=null
+            contentIntent=PendingIntent{71ffc77: PendingIntentRecord{4a6124f me.chrisalvis.zeldastock startActivity (allowlist: 581711d:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+            deleteIntent=null
+            number=0
+            groupAlertBehavior=0
+            when=1793555659759/1793555659759
+            tickerText=null
+            vis=0
+            contentView=null
+            bigContentView=null
+            headsUpContentView=null
+            color=0x00000000
+            timeout=PT72H
+            extras={
+                android.title=String (Walmart recovered)
+                android.reduced.images=Boolean (true)
+                android.template=String (android.app.Notification$BigTextStyle)
+                android.text=String (Walmart is reading normally again.)
+--
+    NotificationRecord(0x0f28394d: pkg=me.chrisalvis.zeldastock user=UserHandle{0} id=189907082 tag=null importance=3 key=0|me.chrisalvis.zeldastock|189907082|null|10483: Notification(channel=server shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=AUTO_CANCEL color=0x00000000 vis=PRIVATE))
+      uid=10483 userId=0
+      opPkg=me.chrisalvis.zeldastock
+      icon=Icon(typ=RESOURCE pkg=me.chrisalvis.zeldastock id=0x0108007c)
+      flags=AUTO_CANCEL
+      originalFlags=AUTO_CANCEL
+      pri=0
+      key=0|me.chrisalvis.zeldastock|189907082|null|10483
+      seen=false
+      groupKey=0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection
+      notification=
+            fullscreenIntent=null
+            contentIntent=PendingIntent{4240c02: PendingIntentRecord{4a6124f me.chrisalvis.zeldastock startActivity (allowlist: 581711d:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+            deleteIntent=null
+            number=0
+            groupAlertBehavior=0
+            when=1793555652828/1793555652828
+            tickerText=null
+            vis=0
+            contentView=null
+            bigContentView=null
+            headsUpContentView=null
+            color=0x00000000
+            timeout=PT72H
+            extras={
+                android.title=String (Target blocked)
+                android.reduced.images=Boolean (true)
+                android.template=String (android.app.Notification$BigTextStyle)
+                android.text=String (Target hasn't read normally for 3 checks. Open the server browser view to fix it.
+--
+    StatusBarNotification(pkg=me.chrisalvis.zeldastock user=UserHandle{0} id=-1038755858 tag=null key=0|me.chrisalvis.zeldastock|-1038755858|null|10483: Notification(channel=restock_alarm shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=INSISTENT|AUTO_CANCEL|HIGH_PRIORITY color=0x00000000 category=alarm vis=PUBLIC))
+    StatusBarNotification(pkg=me.chrisalvis.zeldastock user=UserHandle{0} id=1052462632 tag=null key=0|me.chrisalvis.zeldastock|1052462632|null|10483: Notification(channel=restock_alarm shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=INSISTENT|AUTO_CANCEL|HIGH_PRIORITY color=0x00000000 category=alarm vis=PUBLIC))
+    StatusBarNotification(pkg=me.chrisalvis.zeldastock user=UserHandle{0} id=684062173 tag=null key=0|me.chrisalvis.zeldastock|684062173|null|10483: Notification(channel=restock_alarm shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=INSISTENT|AUTO_CANCEL|HIGH_PRIORITY color=0x00000000 category=alarm vis=PUBLIC))
+    ...
+
+  Snoozed notifications:
+
+ Pending snoozed notifications
+
+  Ranking Config:
+    mSignalExtractors.length = 10
+      NotificationChannelExtractor
+      NotificationAdjustmentExtractor
+      BubbleExtractor
+      ValidateNotificationPeople
+      PriorityExtractor
+      ZenModeExtractor
+      ImportanceExtractor
+      VisibilityExtractor
+      BadgeExtractor
+      CriticalNotificationExtractor
+
+ Notification Preferences:
+    per-package config version: 4
+PackagePreferences:
+      AppSettings: com.android.ons (1001) fixedImportance=true
+      AppSettings: com.android.networkstack.overlay (10040)
+      AppSettings: com.google.android.safetycenter.resources (10311)

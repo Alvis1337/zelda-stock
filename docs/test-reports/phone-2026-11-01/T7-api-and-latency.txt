@@ -1,0 +1,2 @@
+sent_at=12:31:44 api_ms=2048 response={"kind":"test","sent":{"up":"ok"}}
+notification_post_ms=1793554306972 latency_s=2.7

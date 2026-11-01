@@ -1,0 +1,15 @@
+t+1.9s isKeyguardShowing=false 
+t+7.1s isKeyguardShowing=false 
+t+12.6s isKeyguardShowing=false 
+t+18.0s isKeyguardShowing=false 
+t+23.3s isKeyguardShowing=false 
+t+0.1s isKeyguardShowing=false Zelda 40th Anniversary Nintendo Switch 2 console only, sold by the retailer itself. The home server checks Best Buy, Target, Walmart, GameStop, Nintendo and Amazon every few minutes;  App v1.0.28 · up to date 
+t+3.2s isKeyguardShowing=false Zelda 40th Anniversary Nintendo Switch 2 console only, sold by the retailer itself. The home server checks Best Buy, Target, Walmart, GameStop, Nintendo and Amazon every few minutes;  App v1.0.28 · up to date 
+t+6.7s isKeyguardShowing=false Zelda 40th Anniversary Nintendo Switch 2 console only, sold by the retailer itself. The home server checks Best Buy, Target, Walmart, GameStop, Nintendo and Amazon every few minutes;  App v1.0.28 · up to date 
+t+10.3s isKeyguardShowing=false Zelda 40th Anniversary Nintendo Switch 2 console only, sold by the retailer itself. The home server checks Best Buy, Target, Walmart, GameStop, Nintendo and Amazon every few minutes;  App v1.0.28 · up to date 
+t+13.8s isKeyguardShowing=false Zelda 40th Anniversary Nintendo Switch 2 console only, sold by the retailer itself. The home server checks Best Buy, Target, Walmart, GameStop, Nintendo and Amazon every few minutes;  App v1.0.28 · up to date 
+t+16.9s isKeyguardShowing=false Zelda 40th Anniversary Nintendo Switch 2 console only, sold by the retailer itself. The home server checks Best Buy, Target, Walmart, GameStop, Nintendo and Amazon every few minutes;  App v1.0.28 · up to date 
+t+0.1s isKeyguardShowing=false Best Buy: opening the page to add one to your cart… BACK ADD TO CART 
+t+2.9s isKeyguardShowing=false Best Buy: Price shows $109999.00 (over $560). Not adding: likely a reseller. BACK ADD TO CART 
+t+7.2s isKeyguardShowing=false Best Buy: Price shows $109999.00 (over $560). Not adding: likely a reseller. BACK ADD TO CART 
+t+11.9s isKeyguardShowing=false Best Buy: Price shows $109999.00 (over $560). Not adding: likely a reseller. BACK ADD TO CART 

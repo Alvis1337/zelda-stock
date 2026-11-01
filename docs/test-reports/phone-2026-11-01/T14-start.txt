@@ -1,0 +1,6 @@
+T14 start 2026-11-01 12:58:03 EST
+Battery stats reset.
+  AC powered: false
+  USB powered: false
+  level: 90
+  Capacity level: 2

@@ -1,0 +1,4 @@
+12:54:03 {"kind":"blocked","retailer":"Walmart"} -> {"kind":"blocked","sent":{"up":"ok"}}
+12:54:10 {"kind":"blocked","retailer":"Target"} -> {"kind":"blocked","sent":{"up":"ok"}}
+12:54:17 {"kind":"recovered","retailer":"Walmart"} -> {"kind":"recovered","sent":{"up":"ok"}}
+12:54:24 {"kind":"heartbeat"} -> {"kind":"heartbeat","sent":{"up":"ok"}}

@@ -1,0 +1,13 @@
+Current time: Sun Nov 01 12:29:15 EST 2026
+11-01 11:56:40:785 new player piid:2343 uid/pid:10483/20034 package:me.chrisalvis.zeldastock type:AAudio attr:AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_UNKNOWN source=DEFAULT flags=0x0 tags= bundle=null session:-1
+11-01 11:56:48:616 new player piid:2351 uid/pid:10483/20034 package:me.chrisalvis.zeldastock type:AAudio attr:AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_UNKNOWN source=DEFAULT flags=0x0 tags= bundle=null session:-1
+11-01 11:57:02:433 new player piid:2367 uid/pid:10483/20034 package:me.chrisalvis.zeldastock type:AAudio attr:AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_UNKNOWN source=DEFAULT flags=0x0 tags= bundle=null session:-1
+11-01 11:57:07:109 new player piid:2375 uid/pid:10483/20034 package:me.chrisalvis.zeldastock type:AAudio attr:AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_UNKNOWN source=DEFAULT flags=0x0 tags= bundle=null session:-1
+11-01 11:57:07:116 new player piid:2383 uid/pid:10483/20034 package:me.chrisalvis.zeldastock type:AAudio attr:AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_UNKNOWN source=DEFAULT flags=0x0 tags= bundle=null session:-1
+11-01 11:57:10:822 new player piid:2399 uid/pid:10483/20034 package:me.chrisalvis.zeldastock type:AAudio attr:AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_UNKNOWN source=DEFAULT flags=0x0 tags= bundle=null session:-1
+11-01 11:58:01:265 new player piid:2407 uid/pid:10483/20034 package:me.chrisalvis.zeldastock type:AAudio attr:AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_UNKNOWN source=DEFAULT flags=0x0 tags= bundle=null session:-1
+11-01 11:58:13:656 new player piid:2415 uid/pid:10483/20034 package:me.chrisalvis.zeldastock type:AAudio attr:AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_UNKNOWN source=DEFAULT flags=0x0 tags= bundle=null session:-1
+11-01 11:28:37:286 requestAudioFocus() from uid/pid 10292/2163 AA=USAGE_ALARM/CONTENT_TYPE_SONIFICATION clientId=android.media.AudioManager@38e2e35 callingPack=com.android.systemui req=2 flags=0x0 sdk=37
+    -AudioAttributes: usage=USAGE_ALARM content=CONTENT_TYPE_UNKNOWN flags=0x800(FLAG_MUTE_HAPTIC)  tags= bundle=null    
+            -AudioAttributes: usage=USAGE_ALARM content=CONTENT_TYPE_UNKNOWN flags=0x800(FLAG_MUTE_HAPTIC)  tags= bundle=null
+	AudioAttributes: usage=USAGE_ALARM content=CONTENT_TYPE_UNKNOWN flags=0x800(FLAG_MUTE_HAPTIC)  tags= bundle=null forVolume: true stream: STREAM_ALARM(4)

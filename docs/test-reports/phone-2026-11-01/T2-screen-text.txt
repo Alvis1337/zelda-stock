@@ -1,0 +1,48 @@
+  Zelda 40th Anniversary
+  Nintendo Switch 2 console only, sold by the retailer itself. The home server checks Best Buy, Target, Walmart, GameStop, Nintendo and Amazon every few minutes;
+  App v1.0.28 · up to date
+  CHECK FOR UPDATES
+  Home server
+  Last server check: 2 min ago
+  None in stock near 45780, 43130, 45701 | Next check 12:28
+  CHECK NOW
+  REFRESH
+  Alerts
+  On. The server pushes alerts to this phone through io.heckel.ntfy.
+  RE-REGISTER ALERTS
+  TEST ALARM
+  TEST FROM SERVER
+  Alerts can open checkout on the lock screen by themselves.
+  Fast checkout
+  Sign in to each store once here. When the console shows up, the alert opens checkout, adds one to your cart (only at about MSRP and only from the store itself),
+  Best Buy
+  Target
+  Walmart
+  Amazon
+  Nintendo
+  Server settings
+  EDIT
+  Connected through Cloudflare Access to https://zelda-stock.chrisalvis.me
+  OUT OF STOCK · Best Buy
+  Switch 2 – The Legend of Zelda 40th Anniversary Edition
+  online | button: Sold Out (SKU 6691841)
+  OUT OF STOCK · Target
+  Nintendo™ Switch 2 The Legend of Zelda 40th Anniversary Edition Console System
+  online | card says sold out / out of stock
+  2 stores within 50 mi of 45780 | 0 available at every store
+  16 stores within 50 mi of 43130 | 0 available at every store
+  1 stores within 50 mi of 45701 | 0 available at every store
+  OUT OF STOCK · Walmart
+  Nintendo Switch™ 2 – The Legend of Zelda™ – 40th Anniversary Edition
+  online | Walmart itself is sold out; only marketplace seller Gravity Peak LLC at $775
+  OUT OF STOCK · GameStop
+  Nintendo Switch 2 The Legend of Zelda 40th Anniversary Edition
+  online | $519.99
+  stores within 100 mi of 45780 | GameStop: no store currently has inventory
+  stores within 100 mi of 43130 | GameStop: no store currently has inventory
+  stores within 100 mi of 45701 | GameStop: no store currently has inventory
+  OUT OF STOCK · Nintendo
+  Nintendo Switch 2 – The Legend of Zelda 40th Anniversary Edition
+  online | page says out of stock / sold out
+  OUT OF STOCK · Amazon
+  online | Currently unavailable. We don't know when or if this item will be back in stock. (checked 12:15 PM; Amazon runs every 10 min)

@@ -1,0 +1,22 @@
+    NotificationRecord(0x085854c9: pkg=me.chrisalvis.zeldastock user=UserHandle{0} id=0 tag=0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection importance=4 key=0|me.chrisalvis.zeldastock|0|0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection|10483|0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection: Notification(channel=restock_alarm shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=AUTO_CANCEL|LOCAL_ONLY|GROUP_SUMMARY|AUTOGROUP_SUMMARY|SILENT color=0x00000000 groupKey=0|me.chrisalvis.zeldastock|g:Aggregate_AlertingSection vis=PUBLIC))
+            fullscreenIntent=null
+      mCreationTimeMs=1793554644230
+      mInterruptionTimeMs=1793554644230
+    NotificationRecord(0x01e0b5fc: pkg=me.chrisalvis.zeldastock user=UserHandle{0} id=607352532 tag=null importance=4 key=0|me.chrisalvis.zeldastock|607352532|null|10483: Notification(channel=restock_alarm shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=INSISTENT|AUTO_CANCEL|HIGH_PRIORITY color=0x00000000 category=alarm vis=PUBLIC))
+            fullscreenIntent=PendingIntent{1087485: PendingIntentRecord{6d708c3 me.chrisalvis.zeldastock startActivity (allowlist: 581711d:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+                android.title=String (In stock at Target: TEST: simulated restock)
+                android.text=String (heyday 6ft USB-C to USB-C 240W Braided Cable)
+      mCreationTimeMs=1793554773845
+      mInterruptionTimeMs=1793554879696
+    NotificationRecord(0x0c8135e8: pkg=me.chrisalvis.zeldastock user=UserHandle{0} id=-1209131458 tag=null importance=4 key=0|me.chrisalvis.zeldastock|-1209131458|null|10483: Notification(channel=restock_alarm shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=INSISTENT|AUTO_CANCEL|HIGH_PRIORITY color=0x00000000 category=alarm vis=PUBLIC))
+            fullscreenIntent=PendingIntent{ae0d401: PendingIntentRecord{a07722f me.chrisalvis.zeldastock startActivity (allowlist: 581711d:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+                android.title=String (In stock at Best Buy: TEST: simulated restock)
+                android.text=String (Insignia 4ft USB-C to USB-C Braided Cables (2-Pack))
+      mCreationTimeMs=1793554644019
+      mInterruptionTimeMs=1793554868260
+    NotificationRecord(0x0638c62a: pkg=me.chrisalvis.zeldastock user=UserHandle{0} id=1919236357 tag=null importance=4 key=0|me.chrisalvis.zeldastock|1919236357|null|10483: Notification(channel=restock_alarm shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=INSISTENT|AUTO_CANCEL color=0x00000000 category=alarm vis=PUBLIC))
+            fullscreenIntent=null
+                android.title=String (In stock at Test: this is only a test)
+                android.text=String (Zelda 40th Anniversary console (test alert))
+      mCreationTimeMs=1793554306972
+      mInterruptionTimeMs=1793554406532

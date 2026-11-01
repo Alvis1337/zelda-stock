@@ -1,0 +1,11 @@
+  11-01 12:58:04.041 090 status=charging health=good plug=none temp=310 volt=4444 charge=4422 modemRailChargemAh=0 wifiRailChargemAh=0 +running +wake_lock +wifi
+  11-01 12:58:08.321 090 +sensor -screen +screen_doze +state=10292:"sensor:0x101000a"
+  11-01 13:19:49.981 090 +wake_lock=u0a483:"NotificationManagerService:post:me.chrisalvis.zeldastock"
+  11-01 13:19:50.244 090 +screen -screen_doze
+  11-01 13:19:50.268 090 +top=u0a483:"me.chrisalvis.zeldastock"
+  11-01 13:19:50.268 090 -top=u0a483:"me.chrisalvis.zeldastock"
+  11-01 13:19:50.268 090 +top=u0a483:"me.chrisalvis.zeldastock"
+  11-01 13:19:50.276 090 +tmpwhitelist=u0a483:"setPendingIntentAllowlistDuration,reason:NotificationManagerService,pendingintent:u0a292:me.chrisalvis.zeldastock
+  11-01 13:20:19.512 090 -wake_lock=u0a279:"ContextHubClientBroker" -tmpwhitelist=u0a483:"setPendingIntentAllowlistDuration,reason:NotificationManagerService,pe
+  11-01 13:25:06.130 090 -top=u0a483:"me.chrisalvis.zeldastock"
+  11-01 13:25:39.590 090 +top=u0a483:"me.chrisalvis.zeldastock"

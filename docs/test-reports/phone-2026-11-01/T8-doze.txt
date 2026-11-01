@@ -1,0 +1,14 @@
+Now forced in to deep idle mode
+IDLE
+OVERRIDE
+sent_at=12:33:24 api_ms=1918 response={"kind":"test","sent":{"up":"ok"}}
+notification_post_ms=1793554406532 latency_s=2.5
+IDLE
+Light state: OVERRIDE, deep state: IDLE
+mForceModeManagerQuickDozeRequest: false
+mForceModeManagerOffBodyState: false
+ACTIVE
+  AC powered: true
+  USB powered: false
+  level: 79
+  Capacity level: 2

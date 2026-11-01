@@ -1,0 +1,12 @@
+t+2.1s isKeyguardShowing=true 
+t+5.7s isKeyguardShowing=true 
+t+9.2s isKeyguardShowing=true 
+t+12.6s isKeyguardShowing=true 
+t+15.7s isKeyguardShowing=true 
+t+19.2s isKeyguardShowing=true 
+t+22.6s isKeyguardShowing=true 
+t+26.1s isKeyguardShowing=true 
+t+29.5s isKeyguardShowing=true 
+t+32.9s isKeyguardShowing=true 
+t+36.3s isKeyguardShowing=true 
+t+39.8s isKeyguardShowing=true 

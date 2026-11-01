@@ -1,0 +1,17 @@
+## versions
+    versionCode=28 minSdk=26 targetSdk=35
+    versionName=1.0.28
+    versionName=1.25.2
+## model
+Pixel 11 Pro Fold
+17
+37
+CD1A.261005.003
+## POST_NOTIFICATIONS
+        android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SET|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+## USE_FULL_SCREEN_INTENT appop
+Uid mode: USE_FULL_SCREEN_INTENT: deny
+## alarms count
+0
+## services
+  (nothing)

@@ -1,0 +1,1 @@
+NotificationChannel{mId='restock_alarm', mName=In-stock alarm, mDescription=hasDescription , mImportance=4, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=content://settings/system/alarm_alert, mLights=false, mLightColor=0, mVibrationPattern=[0, 600, 300, 600, 300, 600], mVibrationEffect=Composed{segments=[Step{amplitude=0.0, duration=0}

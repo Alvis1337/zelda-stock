@@ -1,0 +1,19 @@
+Excerpt of `adb shell dumpsys notification` at 12:29 (other apps' notifications removed)
+
+  Notification attention state:
+      mSoundNotificationKey=null
+      mVibrateNotificationKey=null
+      mDisableNotificationEffects=false
+    mListenerHints: 2
+    mListenersDisablingEffects: (hint[2]:ComponentInfo{com.google.android.apps.wear.companion/com.google.android.libraries.wear.companion.notification.service.CompanionNotificationListenerService})
+    mZenMode=ZEN_MODE_OFF
+    2026-10-31T21:43:00.126737 - listener_hints_changed: none->disable_notification_effects,listeners=0
+    2026-10-31T21:43:00.126852 - suppressor_changed: suppressed effects:0->1,->{com.google.android.apps.wear.companion/com.google.android.libraries.wear.companion.notification.service.CompanionNotificationListenerService}
+    2026-10-31T22:40:19.755213 - listener_hints_changed: disable_notification_effects->none,listeners=1
+    2026-10-31T22:40:19.755484 - suppressor_changed: suppressed effects:1->0,{com.google.android.apps.wear.companion/com.google.android.libraries.wear.companion.notification.service.CompanionNotificationListenerService}->
+    2026-10-31T22:40:26.249446 - listener_hints_changed: none->disable_notification_effects,listeners=0
+    2026-10-31T22:40:26.249578 - suppressor_changed: suppressed effects:0->1,->{com.google.android.apps.wear.companion/com.google.android.libraries.wear.companion.notification.service.CompanionNotificationListenerService}
+    2026-11-01T09:28:43.693601 - listener_hints_changed: disable_notification_effects->none,listeners=1
+    2026-11-01T09:28:43.693963 - suppressor_changed: suppressed effects:1->0,{com.google.android.apps.wear.companion/com.google.android.libraries.wear.companion.notification.service.CompanionNotificationListenerService}->
+    2026-11-01T12:20:31.192750 - listener_hints_changed: none->disable_notification_effects,listeners=0
+    2026-11-01T12:20:31.193085 - suppressor_changed: suppressed effects:0->1,->{com.google.android.apps.wear.companion/com.google.android.libraries.wear.companion.notification.service.CompanionNotificationListenerService}

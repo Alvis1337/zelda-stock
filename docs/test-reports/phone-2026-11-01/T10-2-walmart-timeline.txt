@@ -1,0 +1,7 @@
+t+0.1s isKeyguardShowing=false Walmart: opening the page to add one to your cart… BACK ADD TO CART 
+t+2.9s isKeyguardShowing=false Walmart: Price shows $52900.00 (over $560). Not adding: likely a reseller. BACK ADD TO CART 
+t+6.7s isKeyguardShowing=false Walmart: Price shows $52900.00 (over $560). Not adding: likely a reseller. BACK ADD TO CART 
+t+11.0s isKeyguardShowing=false Walmart: Price shows $52900.00 (over $560). Not adding: likely a reseller. BACK ADD TO CART 
+t+15.3s isKeyguardShowing=false Walmart: Price shows $52900.00 (over $560). Not adding: likely a reseller. BACK ADD TO CART 
+t+19.4s isKeyguardShowing=false Walmart: Price shows $52900.00 (over $560). Not adding: likely a reseller. BACK ADD TO CART 
+t+23.3s isKeyguardShowing=false Walmart: Price shows $52900.00 (over $560). Not adding: likely a reseller. BACK ADD TO CART 
