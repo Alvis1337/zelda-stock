@@ -16,16 +16,14 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
-/** Stored results, settings, and restock notifications. */
+/** Stored server results, settings, and the notifications for server pushes. */
 public final class Results {
     private Results() { }
 
     public static final String CH_ALERTS = "restock_alarm";
-    public static final String CH_WATCH = "watch";
+    public static final String CH_SERVER = "server";
     public static final String CH_UPDATES = "updates";
 
     public static SharedPreferences prefs(Context c) {
@@ -50,39 +48,60 @@ public final class Results {
         return r.optString("retailer") + "|" + r.optString("product") + "|" + r.optString("where");
     }
 
-    public static List<JSONObject> load(Context c) {
-        List<JSONObject> out = new ArrayList<>();
+    /** The last /api/status answer, so the main screen has something to show offline. */
+    public static void saveStatus(Context c, JSONObject status) {
+        prefs(c).edit().putString("last_status", status.toString())
+                .putLong("last_status_at", System.currentTimeMillis()).apply();
+    }
+
+    public static JSONObject loadStatus(Context c) {
         try {
-            JSONArray a = new JSONArray(prefs(c).getString("last_rows", "[]"));
-            for (int i = 0; i < a.length(); i++) out.add(a.getJSONObject(i));
-        } catch (Exception ignored) { }
+            return new JSONObject(prefs(c).getString("last_status", "{}"));
+        } catch (Exception e) {
+            return new JSONObject();
+        }
+    }
+
+    public static List<JSONObject> rows(JSONObject status) {
+        List<JSONObject> out = new ArrayList<>();
+        JSONArray a = status.optJSONArray("rows");
+        if (a != null) for (int i = 0; i < a.length(); i++) {
+            JSONObject r = a.optJSONObject(i);
+            if (r != null) out.add(r);
+        }
         return out;
     }
 
-    /**
-     * Saves a finished run and posts a notification for every IN STOCK row that
-     * was not in stock on the previous run. Returns the number of new rows.
-     */
-    public static int saveAndNotify(Context c, List<JSONObject> rows, String zip) {
-        SharedPreferences p = prefs(c);
-        Set<String> before = new HashSet<>(p.getStringSet("in_stock_keys", new HashSet<>()));
-        Set<String> now = new HashSet<>();
-        List<JSONObject> fresh = new ArrayList<>();
-        for (JSONObject r : rows) {
-            if (!"IN STOCK".equals(r.optString("status"))) continue;
-            String k = key(r);
-            now.add(k);
-            if (!before.contains(k)) fresh.add(r);
+    /** Handles one message pushed by the server (see server/src/notify). */
+    public static void onServerPush(Context c, JSONObject m) {
+        String type = m.optString("type");
+        prefs(c).edit().putString("last_push", m.toString()).putLong("last_push_at", System.currentTimeMillis()).apply();
+        if ("in_stock".equals(type) || "test".equals(type)) {
+            JSONObject r = row(m.optString("retailer"), m.optString("product"), m.optString("where"),
+                    "IN STOCK", m.optString("detail"), m.optString("url"));
+            // A real alert opens checkout and adds one to the cart; a test only opens the page.
+            notifyInStock(c, r, "in_stock".equals(type));
+        } else {
+            notifyServer(c, m.optString("title", "Zelda Stock server"), m.optString("body"), type.hashCode());
         }
-        JSONArray a = new JSONArray();
-        for (JSONObject r : rows) a.put(r);
-        p.edit().putString("last_rows", a.toString())
-                .putLong("last_checked", System.currentTimeMillis())
-                .putString("last_zip", zip)
-                .putStringSet("in_stock_keys", now)
-                .apply();
-        for (JSONObject r : fresh) notifyInStock(c, r, true);
-        return fresh.size();
+    }
+
+    /** Normal-priority notification for server news: blocked, recovered, heartbeat. */
+    public static void notifyServer(Context c, String title, String text, int id) {
+        if (!canNotify(c)) return;
+        createChannels(c);
+        Intent open = new Intent(c, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        PendingIntent pi = PendingIntent.getActivity(c, 7, open,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        Notification n = new Notification.Builder(c, CH_SERVER)
+                .setSmallIcon(android.R.drawable.stat_notify_sync)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setStyle(new Notification.BigTextStyle().bigText(text))
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .build();
+        c.getSystemService(NotificationManager.class).notify(id, n);
     }
 
     public static void createChannels(Context c) {
@@ -100,10 +119,11 @@ public final class Results {
                         .build());
         alerts.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
         nm.createNotificationChannel(alerts);
-        NotificationChannel watch = new NotificationChannel(CH_WATCH, "Watcher running",
-                NotificationManager.IMPORTANCE_MIN);
-        watch.setDescription("Shown while the background watcher is on");
-        nm.createNotificationChannel(watch);
+        nm.deleteNotificationChannel("watch"); // the old on-phone watcher
+        NotificationChannel server = new NotificationChannel(CH_SERVER, "Server status",
+                NotificationManager.IMPORTANCE_DEFAULT);
+        server.setDescription("A retailer is blocked or recovered, and the daily heartbeat");
+        nm.createNotificationChannel(server);
         NotificationChannel upd = new NotificationChannel(CH_UPDATES, "App updates",
                 NotificationManager.IMPORTANCE_DEFAULT);
         nm.createNotificationChannel(upd);
@@ -127,7 +147,7 @@ public final class Results {
                 || c.getSystemService(NotificationManager.class).canUseFullScreenIntent();
     }
 
-    private static void notifyInStock(Context c, JSONObject r, boolean assist) {
+    public static void notifyInStock(Context c, JSONObject r, boolean assist) {
         if (!canNotify(c)) return;
         createChannels(c);
         String url = r.optString("url");

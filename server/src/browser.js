@@ -13,6 +13,8 @@ export function row(retailer, product, where, status, detail, url) {
   return { retailer, product: product || '-', where: where || '-', status, detail: detail || '', url: url || '' };
 }
 
+export const shotName = (job) => job.script.replace(/\.js$/, '') + (job.script === 'gamestop_store.js' ? '-' + job.zip : '');
+
 const short = (e) => String((e && e.message) || e).split('\n')[0].slice(0, 160);
 
 export class Browser {
@@ -64,8 +66,30 @@ export class Browser {
     return this.page;
   }
 
-  /** Runs one job and returns its rows. Never throws. */
+  /** Runs one job and returns its rows. Never throws. Leaves a screenshot of the page. */
   async runJob(job, jobId) {
+    const rows = await this.runJobInner(job, jobId);
+    await this.shot(job, rows);
+    return rows;
+  }
+
+  /** Latest screenshot + page text per job, in DATA_DIR/shots, for checking what a site showed. */
+  async shot(job, rows) {
+    if (!this.page || this.page.isClosed()) return;
+    try {
+      const dir = path.join(config.dataDir, 'shots');
+      fs.mkdirSync(dir, { recursive: true });
+      const name = shotName(job);
+      await this.page.screenshot({ path: path.join(dir, name + '.png'), timeout: 10_000 });
+      const text = await this.page.evaluate(() => (document.body ? document.body.innerText : '')).catch(() => '');
+      fs.writeFileSync(path.join(dir, name + '.txt'),
+        `${new Date().toISOString()} ${this.page.url()}\n${JSON.stringify(rows, null, 1)}\n\n${text.slice(0, 20_000)}`);
+    } catch (e) {
+      console.log(`screenshot ${job.script} failed: ${short(e)}`);
+    }
+  }
+
+  async runJobInner(job, jobId) {
     const blank = (status, detail) => [row(job.retailer, '-', '-', status, detail, job.url)];
     let page;
     try {

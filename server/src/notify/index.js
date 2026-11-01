@@ -2,8 +2,9 @@
 import { config } from '../config.js';
 import * as fcm from './fcm.js';
 import * as ntfy from './ntfy.js';
+import * as up from './up.js';
 
-const CHANNELS = { fcm, ntfy };
+const CHANNELS = { fcm, ntfy, up };
 
 export function message(ev, at) {
   switch (ev.type) {

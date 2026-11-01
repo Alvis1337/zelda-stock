@@ -4,100 +4,100 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.PowerManager;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
-import android.text.Editable;
 import android.text.InputType;
-import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.Spinner;
-import android.widget.Switch;
 import android.widget.TextView;
 
 import org.json.JSONObject;
+import org.unifiedpush.android.connector.UnifiedPush;
 
 import java.text.DateFormat;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
 /**
- * Zelda 40th Anniversary Switch 2 stock checker.
+ * Zelda 40th Anniversary Switch 2 stock alerts.
  *
- * Only the 40th Anniversary console sold by the retailer itself is reported, and
- * a row says IN STOCK only when the retailer's own data says so.
+ * The checks run on the home server; this app shows the server's latest results,
+ * gets its alerts through UnifiedPush, and does the checkout on the phone.
  */
 public class MainActivity extends Activity {
 
-    private static final int REQ_LOCATION = 1, REQ_NOTIFY = 2, REQ_NOTIFY_TEST = 3;
-    private static final Integer[] INTERVALS = {1, 2, 5, 10, 15, 30, 60};
+    private static final int REQ_NOTIFY = 2, REQ_NOTIFY_TEST = 3;
+    private static final long STALE_MS = 30 * 60_000L;
+    private static final String PUSH_INSTANCE = "default";
 
     private static final int INK = Color.parseColor("#17212B");
     private static final int MUTED = Color.parseColor("#5B6B7B");
     private static final int BG = Color.parseColor("#F3F5F8");
     private static final int ACCENT = Color.parseColor("#2E7D32");
+    private static final int WARN = Color.parseColor("#C62828");
 
     private SharedPreferences prefs;
-    private StockChecker checker;
+    private final Handler main = new Handler(Looper.getMainLooper());
 
-    private LinearLayout root, resultsBox;
-    private TextView statusText, zipLabel, updateText, batteryText, exactText, fullText;
-    private EditText zipInput, radiusInput;
-    private Switch locationSwitch, watchSwitch;
-    private Spinner intervalSpinner;
-    private Button checkButton, browserButton, updateButton, batteryButton, exactButton, fullButton;
+    private LinearLayout root, resultsBox, settingsBox;
+    private TextView serverText, statusText, pushText, settingsText, updateText, fullText;
+    private EditText urlInput, idInput, secretInput;
+    private Button checkButton, pushButton, updateButton, fullButton, settingsToggle;
     private LinearLayout updateCard;
     private Updater.Info pendingUpdate;
-    private boolean bindingUi;
+    private boolean polling;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = Results.prefs(this);
         Results.createChannels(this);
-        checker = new StockChecker(this, false);
         buildUi();
-        showSaved();
-        if (prefs.getBoolean("use_location", true)) refreshLocation(false);
-        if (prefs.getBoolean("watching", false)) WatchService.start(this);
+        showStatus(Results.loadStatus(this));
+        if (Build.VERSION.SDK_INT >= 33 && !Results.canNotify(this)) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFY);
+        }
+        // Re-register on every start, as UnifiedPush asks; the distributor returns the same endpoint.
+        if (UnifiedPush.getAckDistributor(this) != null) {
+            UnifiedPush.register(this, PUSH_INSTANCE, null, null);
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        WatchService.onRunFinished = () -> runOnUiThread(this::showSaved);
-        refreshBatteryRow();
-        showSaved();
+        refreshPermissionRows();
+        refreshPushUi();
+        if (Server.configured(this)) {
+            refreshStatus();
+            // Keep the server's copy of this phone's endpoint fresh (it may have restarted from scratch).
+            if (System.currentTimeMillis() - prefs.getLong("push_registered_at", 0) > 12 * 3_600_000L) {
+                Server.registerPush(this, (r, e) -> refreshPushUi());
+            }
+        }
         if (pendingUpdate == null && System.currentTimeMillis() - lastUpdateCheck > 60_000) checkForUpdate();
     }
 
     @Override
     protected void onPause() {
-        WatchService.onRunFinished = null;
+        polling = false;
         super.onPause();
-    }
-
-    @Override
-    protected void onDestroy() {
-        checker.destroy();
-        super.onDestroy();
     }
 
     // ------------------------------------------------------------------ UI
@@ -142,6 +142,16 @@ public class MainActivity extends Activity {
         return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, w);
     }
 
+    private EditText field(String hint, String value, int inputType) {
+        EditText e = new EditText(this);
+        e.setHint(hint);
+        e.setSingleLine(true);
+        e.setInputType(inputType);
+        e.setText(value);
+        e.setTextSize(14);
+        return e;
+    }
+
     private void buildUi() {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
@@ -167,11 +177,12 @@ public class MainActivity extends Activity {
 
         root.addView(text("Zelda 40th Anniversary", 24, INK, true));
         TextView sub = text("Nintendo Switch 2 console only, sold by the retailer itself. "
-                + "Best Buy and Target store stock near you; Walmart, GameStop, Nintendo and Amazon online.", 13, MUTED, false);
+                + "The home server checks Best Buy, Target, Walmart, GameStop, Nintendo and Amazon "
+                + "every few minutes; this phone just gets the alert.", 13, MUTED, false);
         sub.setPadding(0, dp(2), 0, dp(8));
         root.addView(sub);
 
-        // Update banner (hidden until an update is found).
+        // Update banner.
         updateCard = card();
         updateText = text("", 14, INK, true);
         updateCard.addView(updateText);
@@ -181,114 +192,38 @@ public class MainActivity extends Activity {
         addCard(root, updateCard);
         setUpdateUi("App v" + BuildConfig.VERSION_NAME, "Check for updates");
 
-        // Search area.
-        LinearLayout area = card();
-        area.addView(text("Search area", 16, INK, true));
-        LinearLayout locRow = row();
-        locRow.addView(text("Use my current location", 15, INK, false), weight(1));
-        locationSwitch = new Switch(this);
-        locationSwitch.setChecked(prefs.getBoolean("use_location", true));
-        locationSwitch.setOnCheckedChangeListener((b, on) -> {
-            if (bindingUi) return;
-            prefs.edit().putBoolean("use_location", on).apply();
-            zipInput.setEnabled(!on);
-            if (on) refreshLocation(true);
-        });
-        locRow.addView(locationSwitch);
-        area.addView(locRow);
-        zipLabel = text("", 13, MUTED, false);
-        area.addView(zipLabel);
+        // Server status.
+        LinearLayout server = card();
+        server.addView(text("Home server", 16, INK, true));
+        serverText = text("", 15, INK, true);
+        serverText.setPadding(0, dp(4), 0, dp(2));
+        server.addView(serverText);
+        statusText = text("", 13, MUTED, false);
+        server.addView(statusText);
+        LinearLayout actions = row();
+        actions.setPadding(0, dp(6), 0, 0);
+        checkButton = new Button(this);
+        checkButton.setText("Check now");
+        checkButton.setOnClickListener(v -> checkNow());
+        actions.addView(checkButton, weight(1));
+        Button refresh = new Button(this);
+        refresh.setText("Refresh");
+        refresh.setOnClickListener(v -> refreshStatus());
+        actions.addView(refresh, weight(1));
+        server.addView(actions);
+        addCard(root, server);
 
-        LinearLayout inRow = row();
-        inRow.setPadding(0, dp(4), 0, 0);
-        zipInput = new EditText(this);
-        zipInput.setHint("ZIP");
-        zipInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-        zipInput.setText(prefs.getString("zip", "45701"));
-        zipInput.setEnabled(!locationSwitch.isChecked());
-        zipInput.addTextChangedListener(new SimpleWatcher(s -> {
-            if (s.matches("\\d{5}") && !locationSwitch.isChecked()) prefs.edit().putString("zip", s).apply();
-        }));
-        inRow.addView(zipInput, weight(1));
-        TextView within = text("within", 15, MUTED, false);
-        within.setPadding(dp(12), 0, dp(8), 0);
-        inRow.addView(within);
-        radiusInput = new EditText(this);
-        radiusInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-        radiusInput.setText(String.valueOf(prefs.getInt("radius", 50)));
-        radiusInput.setGravity(Gravity.CENTER);
-        radiusInput.addTextChangedListener(new SimpleWatcher(s -> {
-            try {
-                int r = Integer.parseInt(s);
-                if (r > 0 && r <= 250) prefs.edit().putInt("radius", r).apply();
-            } catch (NumberFormatException ignored) { }
-        }));
-        inRow.addView(radiusInput, new LinearLayout.LayoutParams(dp(72), ViewGroup.LayoutParams.WRAP_CONTENT));
-        inRow.addView(text(" miles", 15, MUTED, false));
-        area.addView(inRow);
-        addCard(root, area);
-
-        // Background watcher.
-        LinearLayout watch = card();
-        LinearLayout wRow = row();
-        LinearLayout wText = new LinearLayout(this);
-        wText.setOrientation(LinearLayout.VERTICAL);
-        wText.addView(text("Watch in background", 16, INK, true));
-        wText.addView(text("Notifies you the moment one shows up or a store restocks.", 13, MUTED, false));
-        wRow.addView(wText, weight(1));
-        watchSwitch = new Switch(this);
-        watchSwitch.setChecked(prefs.getBoolean("watching", false));
-        watchSwitch.setOnCheckedChangeListener((b, on) -> {
-            if (bindingUi) return;
-            if (on) enableWatcher(); else WatchService.stop(this);
-        });
-        wRow.addView(watchSwitch);
-        watch.addView(wRow);
-
-        LinearLayout iRow = row();
-        iRow.setPadding(0, dp(8), 0, 0);
-        iRow.addView(text("Check every", 15, INK, false), weight(1));
-        intervalSpinner = new Spinner(this);
-        List<String> labels = new ArrayList<>();
-        for (int m : INTERVALS) labels.add(m + " min");
-        ArrayAdapter<String> ad = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, labels);
-        intervalSpinner.setAdapter(ad);
-        int cur = Arrays.asList(INTERVALS).indexOf(prefs.getInt("interval_min", 10));
-        intervalSpinner.setSelection(cur < 0 ? 3 : cur);
-        intervalSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
-                if (prefs.getInt("interval_min", 10) == INTERVALS[pos]) return;
-                prefs.edit().putInt("interval_min", INTERVALS[pos]).apply();
-                if (prefs.getBoolean("watching", false)) WatchService.start(MainActivity.this);
-            }
-            @Override public void onNothingSelected(AdapterView<?> p) { }
-        });
-        iRow.addView(intervalSpinner);
-        watch.addView(iRow);
-
-        LinearLayout bRow = row();
-        bRow.setPadding(0, dp(6), 0, 0);
-        batteryText = text("", 13, MUTED, false);
-        bRow.addView(batteryText, weight(1));
-        batteryButton = new Button(this);
-        batteryButton.setText("Allow");
-        batteryButton.setOnClickListener(v -> askBatteryExemption());
-        bRow.addView(batteryButton);
-        watch.addView(bRow);
-
-        LinearLayout eRow = row();
-        eRow.setPadding(0, dp(2), 0, 0);
-        exactText = text("", 13, MUTED, false);
-        eRow.addView(exactText, weight(1));
-        exactButton = new Button(this);
-        exactButton.setText("Allow");
-        exactButton.setOnClickListener(v -> startActivity(new Intent(
-                Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + getPackageName()))));
-        eRow.addView(exactButton);
-        watch.addView(eRow);
-
+        // Alerts.
+        LinearLayout alerts = card();
+        alerts.addView(text("Alerts", 16, INK, true));
+        pushText = text("", 13, MUTED, false);
+        alerts.addView(pushText);
+        pushButton = new Button(this);
+        pushButton.setOnClickListener(v -> setUpPush());
+        alerts.addView(pushButton);
+        LinearLayout tRow = row();
         Button test = new Button(this);
-        test.setText("Test alert");
+        test.setText("Test alarm");
         test.setOnClickListener(v -> {
             if (!Results.canNotify(this) && Build.VERSION.SDK_INT >= 33) {
                 requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFY_TEST);
@@ -296,8 +231,30 @@ public class MainActivity extends Activity {
                 Results.testAlert(this);
             }
         });
-        watch.addView(test);
-        addCard(root, watch);
+        tRow.addView(test, weight(1));
+        Button serverTest = new Button(this);
+        serverTest.setText("Test from server");
+        serverTest.setOnClickListener(v -> testFromServer());
+        tRow.addView(serverTest, weight(1));
+        alerts.addView(tRow);
+        LinearLayout fRow = row();
+        fRow.setPadding(0, dp(4), 0, 0);
+        fullText = text("", 13, MUTED, false);
+        fRow.addView(fullText, weight(1));
+        fullButton = new Button(this);
+        fullButton.setText("Allow");
+        fullButton.setOnClickListener(v -> {
+            try {
+                startActivity(new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                        Uri.parse("package:" + getPackageName())));
+            } catch (Exception e) {
+                startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + getPackageName())));
+            }
+        });
+        fRow.addView(fullButton);
+        alerts.addView(fRow);
+        addCard(root, alerts);
 
         // Sign in once so checkout has your saved card and address.
         LinearLayout signin = card();
@@ -321,85 +278,78 @@ public class MainActivity extends Activity {
             sb.setOnClickListener(v -> startActivity(CheckoutActivity.intent(this, st[1], st[0], false)));
             sRow.addView(sb, weight(1));
         }
-        LinearLayout fRow = row();
-        fRow.setPadding(0, dp(4), 0, 0);
-        fullText = text("", 13, MUTED, false);
-        fRow.addView(fullText, weight(1));
-        fullButton = new Button(this);
-        fullButton.setText("Allow");
-        fullButton.setOnClickListener(v -> {
-            try {
-                startActivity(new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
-                        Uri.parse("package:" + getPackageName())));
-            } catch (Exception e) {
-                startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.parse("package:" + getPackageName())));
-            }
-        });
-        fRow.addView(fullButton);
-        signin.addView(fRow);
         addCard(root, signin);
 
-        // Actions.
-        LinearLayout actions = row();
-        checkButton = new Button(this);
-        checkButton.setText("Check now");
-        checkButton.setOnClickListener(v -> checkNow());
-        actions.addView(checkButton, weight(1));
-        browserButton = new Button(this);
-        browserButton.setText("Show browser");
-        browserButton.setOnClickListener(v -> toggleBrowser());
-        actions.addView(browserButton, weight(1));
-        root.addView(actions);
-
-        statusText = text("", 13, MUTED, false);
-        statusText.setPadding(dp(4), dp(4), dp(4), dp(4));
-        root.addView(statusText);
-
-        // Kept attached (1px) so pages run; "Show browser" enlarges it to solve a bot check.
-        root.addView(checker.getWebView(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1));
+        // Server settings: Cloudflare Access service token, entered here, never built into the app.
+        LinearLayout settings = card();
+        LinearLayout hRow = row();
+        hRow.addView(text("Server settings", 16, INK, true), weight(1));
+        settingsToggle = new Button(this);
+        settingsToggle.setOnClickListener(v -> showSettings(settingsBox.getVisibility() != View.VISIBLE));
+        hRow.addView(settingsToggle);
+        settings.addView(hRow);
+        settingsText = text("", 13, MUTED, false);
+        settings.addView(settingsText);
+        settingsBox = new LinearLayout(this);
+        settingsBox.setOrientation(LinearLayout.VERTICAL);
+        settingsBox.addView(text("Server URL", 13, MUTED, false));
+        urlInput = field(Server.DEFAULT_URL, Server.baseUrl(this), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        settingsBox.addView(urlInput);
+        settingsBox.addView(text("Cloudflare Access client ID", 13, MUTED, false));
+        idInput = field("xxxxxxxx.access", prefs.getString("cf_id", ""), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        settingsBox.addView(idInput);
+        settingsBox.addView(text("Cloudflare Access client secret", 13, MUTED, false));
+        secretInput = field("secret", prefs.getString("cf_secret", ""), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        settingsBox.addView(secretInput);
+        Button save = new Button(this);
+        save.setText("Save and connect");
+        save.setOnClickListener(v -> saveSettings());
+        settingsBox.addView(save);
+        settings.addView(settingsBox);
+        addCard(root, settings);
+        showSettings(!Server.configured(this));
 
         resultsBox = new LinearLayout(this);
         resultsBox.setOrientation(LinearLayout.VERTICAL);
         root.addView(resultsBox);
 
         setContentView(scroll);
-        updateZipLabel();
     }
 
-    private void updateZipLabel() {
-        String zip = prefs.getString("zip", "45701");
-        zipLabel.setText(locationSwitch.isChecked()
-                ? (LocationHelper.hasPermission(this) ? "Searching near ZIP " + zip : "Location permission needed")
-                : "Using the ZIP below");
-        if (locationSwitch.isChecked()) {
-            bindingUi = true;
-            zipInput.setText(zip);
-            bindingUi = false;
+    private void showSettings(boolean show) {
+        settingsBox.setVisibility(show ? View.VISIBLE : View.GONE);
+        settingsToggle.setText(show ? "Hide" : "Edit");
+        settingsText.setText(Server.configured(this)
+                ? "Connected through Cloudflare Access to " + Server.baseUrl(this)
+                : "Enter the Cloudflare Access service token (client ID and secret) for the server.");
+    }
+
+    private void saveSettings() {
+        String url = urlInput.getText().toString().trim();
+        if (!url.isEmpty() && !url.startsWith("https://")) {
+            settingsText.setText("The server URL must start with https://");
+            return;
         }
+        prefs.edit()
+                .putString("server_url", url)
+                .putString("cf_id", idInput.getText().toString().trim())
+                .putString("cf_secret", secretInput.getText().toString().trim())
+                .remove("push_registered_at")
+                .apply();
+        settingsText.setText("Connecting…");
+        Server.call(this, "GET", "/api/status", null, (res, err) -> {
+            if (err != null) {
+                settingsText.setText("Could not connect: " + err);
+                return;
+            }
+            Results.saveStatus(this, res);
+            showStatus(res);
+            showSettings(false);
+            Server.registerPush(this, (r, e) -> refreshPushUi());
+        });
     }
 
-    private void toggleBrowser() {
-        View web = checker.getWebView();
-        ViewGroup.LayoutParams lp = web.getLayoutParams();
-        boolean show = lp.height <= 1;
-        lp.height = show ? dp(480) : 1;
-        web.setLayoutParams(lp);
-        browserButton.setText(show ? "Hide browser" : "Show browser");
-    }
-
-    private void refreshBatteryRow() {
-        boolean exempt = getSystemService(PowerManager.class).isIgnoringBatteryOptimizations(getPackageName());
-        batteryText.setText(exempt
-                ? "Battery: unrestricted, so checks keep running with the screen off."
-                : "Battery saver may delay checks with the screen off.");
-        batteryButton.setVisibility(exempt ? View.GONE : View.VISIBLE);
-        boolean exact = Build.VERSION.SDK_INT < 31
-                || getSystemService(android.app.AlarmManager.class).canScheduleExactAlarms();
-        exactText.setText(exact
-                ? "Timing: exact, so 1–2 min checks stay on schedule."
-                : "Timing: Android may stretch short intervals to ~10 min.");
-        exactButton.setVisibility(exact ? View.GONE : View.VISIBLE);
+    private void refreshPermissionRows() {
         boolean full = Results.canFullScreen(this);
         fullText.setText(full
                 ? "Alerts can open checkout on the lock screen by themselves."
@@ -407,29 +357,137 @@ public class MainActivity extends Activity {
         fullButton.setVisibility(full ? View.GONE : View.VISIBLE);
     }
 
-    private void askBatteryExemption() {
-        try {
-            startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                    Uri.parse("package:" + getPackageName())));
-        } catch (Exception e) {
-            startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+    // ---------------------------------------------------------------- Push
+    private void refreshPushUi() {
+        String endpoint = prefs.getString("push_endpoint", "");
+        String state = prefs.getString("push_state", "");
+        String serverErr = prefs.getString("push_server_error", "");
+        boolean registered = !endpoint.isEmpty() && endpoint.equals(prefs.getString("push_registered", ""));
+        String distributor = UnifiedPush.getAckDistributor(this);
+        if (!Results.canNotify(this)) {
+            pushText.setText("Notifications are off for this app, so alerts can't ring.");
+            pushText.setTextColor(WARN);
+        } else if (registered) {
+            pushText.setText("On. The server pushes alerts to this phone through "
+                    + (distributor == null ? "your push app" : distributor) + ".");
+            pushText.setTextColor(ACCENT);
+        } else if (!endpoint.isEmpty()) {
+            pushText.setText("Push is set up but the server doesn't know this phone yet"
+                    + (serverErr.isEmpty() ? "." : ": " + serverErr));
+            pushText.setTextColor(WARN);
+        } else if (UnifiedPush.getDistributors(this).isEmpty()) {
+            pushText.setText("Install the ntfy app (it delivers the server's alerts without keeping "
+                    + "this app awake), then tap Set up alerts.");
+            pushText.setTextColor(WARN);
+        } else {
+            pushText.setText(state.isEmpty() ? "Not set up yet." : "Push " + state + ".");
+            pushText.setTextColor(WARN);
         }
+        pushButton.setText(registered ? "Re-register alerts"
+                : UnifiedPush.getDistributors(this).isEmpty() ? "Get ntfy" : "Set up alerts");
+    }
+
+    private void setUpPush() {
+        if (UnifiedPush.getDistributors(this).isEmpty()) {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=io.heckel.ntfy")));
+            } catch (Exception e) {
+                startActivity(new Intent(Intent.ACTION_VIEW,
+                        Uri.parse("https://play.google.com/store/apps/details?id=io.heckel.ntfy")));
+            }
+            return;
+        }
+        pushText.setText("Registering…");
+        UnifiedPush.tryUseCurrentOrDefaultDistributor(this, ok -> {
+            if (ok) {
+                UnifiedPush.register(this, PUSH_INSTANCE, null, null);
+                // The endpoint arrives in PushReceiver; give it a moment, then show the result.
+                main.postDelayed(this::refreshPushUi, 3_000);
+            } else {
+                UnifiedPush.tryPickDistributor(this, picked -> {
+                    if (picked) UnifiedPush.register(this, PUSH_INSTANCE, null, null);
+                    main.postDelayed(this::refreshPushUi, 3_000);
+                    return kotlin.Unit.INSTANCE;
+                });
+            }
+            return kotlin.Unit.INSTANCE;
+        });
+    }
+
+    private void testFromServer() {
+        pushText.setText("Asking the server to send a test alert…");
+        Server.call(this, "POST", "/api/test-alert", null, (res, err) -> {
+            if (err != null) {
+                pushText.setText("Test failed: " + err);
+                return;
+            }
+            JSONObject sent = res.optJSONObject("sent");
+            pushText.setText("Server sent it: " + (sent == null ? res.toString() : sent.toString())
+                    + ". The alarm should ring in a few seconds.");
+        });
     }
 
     // ------------------------------------------------------------- Results
-    private void showSaved() {
-        if (checker != null && checker.isRunning()) return;
-        List<JSONObject> rows = Results.load(this);
-        long at = prefs.getLong("last_checked", 0);
-        if (at > 0) {
-            int hits = 0;
-            for (JSONObject r : rows) if ("IN STOCK".equals(r.optString("status"))) hits++;
-            statusText.setText((hits > 0 ? hits + " in stock" : "None in stock") + " near "
-                    + prefs.getString("last_zip", "?") + " · last checked "
-                    + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(at)));
-        } else {
-            statusText.setText("No checks yet. Tap Check now.");
+    private void refreshStatus() {
+        if (!Server.configured(this)) return;
+        Server.call(this, "GET", "/api/status", null, (res, err) -> {
+            if (err != null) {
+                statusText.setText("Could not reach the server: " + err);
+                return;
+            }
+            Results.saveStatus(this, res);
+            showStatus(res);
+        });
+    }
+
+    private static long parseTime(String iso) {
+        try {
+            return iso == null || iso.isEmpty() || "null".equals(iso) ? 0 : Instant.parse(iso).toEpochMilli();
+        } catch (Exception e) {
+            return 0;
         }
+    }
+
+    private void showStatus(JSONObject s) {
+        List<JSONObject> rows = Results.rows(s);
+        long last = parseTime(s.optString("lastRun", ""));
+        if (!Server.configured(this)) {
+            serverText.setText("Not connected. Open Server settings below.");
+            serverText.setTextColor(WARN);
+        } else if (last == 0) {
+            serverText.setText("No server results yet.");
+            serverText.setTextColor(MUTED);
+        } else {
+            long ago = System.currentTimeMillis() - last;
+            long min = ago / 60_000;
+            serverText.setText("Last server check: " + (min < 1 ? "just now" : min + " min ago"));
+            serverText.setTextColor(ago > STALE_MS ? WARN : ACCENT);
+        }
+        StringBuilder sb = new StringBuilder();
+        int hits = 0;
+        for (JSONObject r : rows) if ("IN STOCK".equals(r.optString("status"))) hits++;
+        if (last > 0) {
+            sb.append(hits > 0 ? hits + " in stock" : "None in stock").append(" near ");
+            org.json.JSONArray zips = s.optJSONArray("zips");
+            if (zips == null || zips.length() == 0) sb.append('?');
+            for (int i = 0; zips != null && i < zips.length(); i++) sb.append(i > 0 ? ", " : "").append(zips.optString(i));
+        }
+        JSONObject running = s.optJSONObject("running");
+        if (running != null) {
+            sb.append(sb.length() > 0 ? "\n" : "").append("Checking ").append(running.optString("progress", "…")).append(" now…");
+        } else if (s.optBoolean("paused")) {
+            sb.append(sb.length() > 0 ? "\n" : "").append("Paused on the server (someone is using its browser view).");
+        } else {
+            long next = parseTime(s.optString("nextRun", ""));
+            if (next > 0) sb.append(sb.length() > 0 ? "\n" : "").append("Next check ")
+                    .append(DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(next)));
+        }
+        long cached = prefs.getLong("last_status_at", 0);
+        if (cached > 0 && System.currentTimeMillis() - cached > 5 * 60_000L) {
+            sb.append("\n(saved ").append(DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+                    .format(new Date(cached))).append(")");
+        }
+        statusText.setText(sb.toString());
         render(rows);
     }
 
@@ -449,7 +507,7 @@ public class MainActivity extends Activity {
         int color;
         switch (status) {
             case "IN STOCK": color = ACCENT; break;
-            case "OUT OF STOCK": color = Color.parseColor("#C62828"); break;
+            case "OUT OF STOCK": color = WARN; break;
             case "NONE FOUND": color = Color.parseColor("#8D6E00"); break;
             default: color = Color.parseColor("#607080");
         }
@@ -479,105 +537,48 @@ public class MainActivity extends Activity {
 
     // ----------------------------------------------------------------- Run
     private void checkNow() {
-        if (checker.isRunning()) return;
+        if (!Server.configured(this)) {
+            showSettings(true);
+            return;
+        }
         checkButton.setEnabled(false);
-        if (locationSwitch.isChecked() && LocationHelper.hasPermission(this)) {
-            statusText.setText("Finding your location…");
-            LocationHelper.currentZip(this, new LocationHelper.Callback() {
-                @Override public void onZip(String zip) {
-                    prefs.edit().putString("zip", zip).apply();
-                    updateZipLabel();
-                    runChecker(zip);
-                }
-                @Override public void onError(String message) {
-                    String zip = prefs.getString("zip", "45701");
-                    statusText.setText("Location: " + message + ". Using " + zip + ".");
-                    runChecker(zip);
-                }
-            });
-        } else {
-            String zip = zipInput.getText().toString().trim();
-            if (!zip.matches("\\d{5}")) {
-                statusText.setText("Enter a 5-digit ZIP.");
+        statusText.setText("Asking the server to check now…");
+        final long before = parseTime(Results.loadStatus(this).optString("lastRun", ""));
+        Server.call(this, "POST", "/api/check", null, (res, err) -> {
+            if (err != null || res.has("error")) {
+                checkButton.setEnabled(true);
+                statusText.setText("Check now failed: " + (err != null ? err : res.optString("error")));
+                return;
+            }
+            polling = true;
+            poll(before, System.currentTimeMillis());
+        });
+    }
+
+    /** Refreshes every 5 s until the server finishes the run (a run takes 1–4 min). */
+    private void poll(long before, long started) {
+        if (!polling) { checkButton.setEnabled(true); return; }
+        Server.call(this, "GET", "/api/status", null, (res, err) -> {
+            if (err == null) {
+                Results.saveStatus(this, res);
+                showStatus(res);
+                boolean done = res.optJSONObject("running") == null && parseTime(res.optString("lastRun", "")) > before;
+                if (done) { polling = false; checkButton.setEnabled(true); return; }
+            }
+            if (System.currentTimeMillis() - started > 6 * 60_000L) {
+                polling = false;
                 checkButton.setEnabled(true);
                 return;
             }
-            prefs.edit().putString("zip", zip).apply();
-            runChecker(zip);
-        }
-    }
-
-    private void runChecker(String zip) {
-        int radius = prefs.getInt("radius", 50);
-        resultsBox.removeAllViews();
-        checker.run(zip, radius, new StockChecker.Listener() {
-            @Override public void onProgress(String retailer) {
-                statusText.setText("Checking " + retailer + " near " + zip + " (" + radius + " mi)…");
-            }
-            @Override public void onDone(List<JSONObject> rows) {
-                Results.saveAndNotify(MainActivity.this, rows, zip);
-                checkButton.setEnabled(true);
-                showSaved();
-            }
+            main.postDelayed(() -> poll(before, started), 5_000);
         });
-    }
-
-    // ---------------------------------------------------------- Permissions
-    private void refreshLocation(boolean ask) {
-        if (!LocationHelper.hasPermission(this)) {
-            if (ask || !prefs.getBoolean("asked_location", false)) {
-                prefs.edit().putBoolean("asked_location", true).apply();
-                requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION,
-                        Manifest.permission.ACCESS_FINE_LOCATION}, REQ_LOCATION);
-            }
-            updateZipLabel();
-            return;
-        }
-        zipLabel.setText("Finding your location…");
-        LocationHelper.currentZip(this, new LocationHelper.Callback() {
-            @Override public void onZip(String zip) {
-                prefs.edit().putString("zip", zip).apply();
-                updateZipLabel();
-            }
-            @Override public void onError(String message) {
-                zipLabel.setText("Location: " + message + ". Using " + prefs.getString("zip", "45701") + ".");
-            }
-        });
-    }
-
-    private void enableWatcher() {
-        if (Build.VERSION.SDK_INT >= 33 && !Results.canNotify(this)) {
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFY);
-            return;
-        }
-        WatchService.start(this);
-        statusText.setText("Watcher on. It checks every " + prefs.getInt("interval_min", 10) + " min.");
     }
 
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
-        boolean granted = results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED;
-        if (code == REQ_LOCATION) {
-            if (granted) refreshLocation(false);
-            else {
-                bindingUi = true;
-                locationSwitch.setChecked(false);
-                bindingUi = false;
-                prefs.edit().putBoolean("use_location", false).apply();
-                zipInput.setEnabled(true);
-                updateZipLabel();
-            }
-        } else if (code == REQ_NOTIFY_TEST) {
-            if (granted) Results.testAlert(this);
-        } else if (code == REQ_NOTIFY) {
-            if (granted) enableWatcher();
-            else {
-                bindingUi = true;
-                watchSwitch.setChecked(false);
-                bindingUi = false;
-                statusText.setText("The watcher needs notification permission to alert you.");
-            }
-        }
+        boolean granted = results.length > 0 && results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        if (code == REQ_NOTIFY_TEST && granted) Results.testAlert(this);
+        refreshPushUi();
     }
 
     // --------------------------------------------------------------- Update
@@ -635,14 +636,5 @@ public class MainActivity extends Activity {
         } else {
             setUpdateUi("Allow \"Install unknown apps\" for Zelda Stock, come back, then tap Install.", "Install");
         }
-    }
-
-    private static final class SimpleWatcher implements TextWatcher {
-        interface On { void changed(String s); }
-        private final On on;
-        SimpleWatcher(On on) { this.on = on; }
-        @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
-        @Override public void onTextChanged(CharSequence s, int a, int b, int c) { }
-        @Override public void afterTextChanged(Editable s) { on.changed(s.toString().trim()); }
     }
 }

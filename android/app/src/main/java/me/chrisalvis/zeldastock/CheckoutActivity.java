@@ -28,7 +28,7 @@ import java.nio.charset.StandardCharsets;
  * In-app browser for signing in and for assisted checkout.
  *
  * Uses the app's own cookie jar, so once you sign in here every retailer page
- * (and the stock checks) sees you as signed in. With assist on, it runs
+ * sees you as signed in. With assist on, it runs
  * assets/assist.js on the product page: one console into the cart, then the
  * cart opens and you finish checkout yourself.
  */

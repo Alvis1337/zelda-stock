@@ -9,8 +9,11 @@ data:
   AMAZON_EVERY_MIN: "10"
   HEARTBEAT_HOUR: "9"
   TZ: America/New_York
-  # ntfy until the app has FCM; then "fcm,ntfy".
-  PUSH: ntfy
+  # up = UnifiedPush to the app (registered via /api/register); ntfy = the topic, as a backup.
+  PUSH: up,ntfy
   NTFY_URL: https://ntfy.sh
   FCM_TOPIC: zelda-oot
+  # Cloudflare Access app "Zelda Stock" (zelda-stock.chrisalvis.me): the API accepts its signed JWT.
+  CF_ACCESS_TEAM: alvisleet.cloudflareaccess.com
+  CF_ACCESS_AUD: e5b85172f185399d157c997a5e563cdcbfeba83705c8cb12d01551359fcc3105
   GOOGLE_APPLICATION_CREDENTIALS: /secrets/fcm/sa.json

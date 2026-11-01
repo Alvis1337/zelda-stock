@@ -3,7 +3,7 @@ window.zsSleep = function (ms) { return new Promise(function (r) { setTimeout(r,
 window.zsFinish = function (obj) { ZS.done(ZS_JOB, JSON.stringify(obj)); };
 window.zsBlocked = function () {
   var t = (document.title + ' ' + (document.body ? document.body.innerText.slice(0, 3000) : '')).toLowerCase();
-  return /robot or human|captcha|access denied|are you a human|verify you are human|px-captcha|pardon our interruption/.test(t);
+  return /robot or human|captcha|access denied|are you a human|verify you are human|px-captcha|pardon our interruption|press (&|and) hold|quick verification|confirm you.re a human/.test(t);
 };
 // Returns why the current page can't be trusted (bot check, error page, empty),
 // or null when it looks like a real page. Never report "none found" from a bad page.

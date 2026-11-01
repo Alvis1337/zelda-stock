@@ -19,6 +19,9 @@ export const config = {
   checksDir: env.CHECKS_DIR || path.resolve(here, '../../checks'),
   port: num(env.PORT, 8080),
   apiToken: env.API_TOKEN || '',
+  // Cloudflare Access in front of the public hostname: team domain and the app's AUD tag.
+  cfAccessTeam: env.CF_ACCESS_TEAM || '',
+  cfAccessAud: env.CF_ACCESS_AUD || '',
   push: list(env.PUSH, 'ntfy'),
   fcmTopic: env.FCM_TOPIC || 'zelda-oot',
   ntfyUrl: (env.NTFY_URL || 'https://ntfy.sh').replace(/\/+$/, ''),

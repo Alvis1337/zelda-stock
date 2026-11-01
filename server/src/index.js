@@ -1,11 +1,15 @@
 // Zelda stock server: runs the checks on a jittered schedule, keeps state.json,
 // pushes alerts on changes, and serves a small HTTP API for the app.
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import http from 'node:http';
+import nodePath from 'node:path';
+import { accessEnabled, verifyAccess } from './access.js';
 import { Browser, row } from './browser.js';
 import { config } from './config.js';
 import { AMAZON, buildJobs } from './jobs.js';
 import { notify } from './notify/index.js';
+import * as up from './notify/up.js';
 import { applyRun, heartbeatDue, loadState, localTime, saveState } from './state.js';
 
 const STUCK_MS = 20 * 60_000; // a run normally takes 2-4 min; past this, let k8s restart the pod
@@ -83,12 +87,26 @@ function schedule(ms) {
   }, ms);
 }
 
-function authorized(req) {
-  if (!config.apiToken) return false;
-  const want = Buffer.from('Bearer ' + config.apiToken);
-  const got = Buffer.from(req.headers.authorization || '');
-  return got.length === want.length && crypto.timingSafeEqual(got, want);
+// Either the API token (kubectl port-forward) or a request Cloudflare Access let through.
+async function authorized(req) {
+  if (config.apiToken) {
+    const want = Buffer.from('Bearer ' + config.apiToken);
+    const got = Buffer.from(req.headers.authorization || '');
+    if (got.length === want.length && crypto.timingSafeEqual(got, want)) return true;
+  }
+  return verifyAccess(req.headers['cf-access-jwt-assertion']);
 }
+
+async function readJson(req) {
+  let body = '';
+  for await (const chunk of req) {
+    body += chunk;
+    if (body.length > 16_384) throw new Error('body too large');
+  }
+  return body ? JSON.parse(body) : {};
+}
+
+const SHOTS = () => nodePath.join(config.dataDir, 'shots');
 
 const server = http.createServer(async (req, res) => {
   const send = (code, obj) => {
@@ -104,9 +122,34 @@ const server = http.createServer(async (req, res) => {
     }
     if (route === 'GET /readyz') return send(browser.ready ? 200 : 503, { ready: browser.ready });
     if (!path.startsWith('/api/')) return send(404, { error: 'not found' });
-    if (!authorized(req)) return send(401, { error: config.apiToken ? 'bad token' : 'API_TOKEN is not set on the server' });
+    if (!(await authorized(req))) return send(401, { error: 'unauthorized' });
+
+    // Latest screenshot / page text per job: /api/shots lists them, /api/shots/<name> serves one.
+    const shot = path.match(/^\/api\/shots\/([a-z0-9_-]+\.(png|txt))$/);
+    if (req.method === 'GET' && shot) {
+      const f = nodePath.join(SHOTS(), shot[1]);
+      if (!fs.existsSync(f)) return send(404, { error: 'no such screenshot' });
+      res.writeHead(200, { 'Content-Type': shot[2] === 'png' ? 'image/png' : 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      return fs.createReadStream(f).pipe(res);
+    }
 
     switch (route) {
+      case 'GET /api/shots': {
+        const files = fs.existsSync(SHOTS()) ? fs.readdirSync(SHOTS()).filter((f) => f.endsWith('.png')) : [];
+        return send(200, files.map((f) => ({ name: f, at: fs.statSync(nodePath.join(SHOTS(), f)).mtime.toISOString(),
+          path: `/api/shots/${f}`, text: `/api/shots/${f.replace(/\.png$/, '.txt')}` })));
+      }
+      case 'POST /api/register': {
+        const b = await readJson(req);
+        const count = up.add(b);
+        log(`registered push endpoint ${new URL(b.endpoint).host} (${b.device || 'unknown device'}), ${count} total`);
+        return send(200, { registered: true });
+      }
+      case 'POST /api/unregister': {
+        const b = await readJson(req);
+        if (b.endpoint) up.remove(b.endpoint);
+        return send(200, { registered: false });
+      }
       case 'GET /api/status':
         return send(200, {
           lastRun: state.lastRun,
@@ -116,6 +159,7 @@ const server = http.createServer(async (req, res) => {
           zips: config.zips,
           radius: config.radius,
           amazonCheckedAt: state.amazon && state.amazon.at,
+          pushDevices: up.list().length,
           rows: state.rows,
         });
       case 'POST /api/check':
@@ -164,7 +208,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
 log(`zelda-stock-server: ZIPs ${config.zips.join(' ')}, ${config.radius} mi, every ~${config.intervalMin} min, ` +
   `push ${config.push.join(',')}, data ${config.dataDir}`);
-if (!config.apiToken) log('warning: API_TOKEN not set, /api/* will refuse every request');
+if (!config.apiToken && !accessEnabled()) log('warning: neither API_TOKEN nor CF_ACCESS_* set, /api/* will refuse every request');
 server.listen(config.port, () => log(`listening on :${config.port}`));
 try {
   await browser.launch(() => {
