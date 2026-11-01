@@ -58,14 +58,21 @@
     var priceText = area.replace(FINANCE, ' ');
     // No price between title and button (Target draws it elsewhere): read the store's own
     // price element. Never just "some block near the button": at Target that's the financing box.
+    // Target leaves its price box empty until it's scrolled into view, so scroll to it and wait.
     if (!PRICE.test(priceText)) {
       priceText = '';
-      var pel = Array.prototype.find.call(document.querySelectorAll(
-        '[data-test="product-price"], [data-testid="price-wrap"], [itemprop="price"], .priceView-hero-price, ' +
-        '[data-testid="customer-price"], #corePrice_feature_div, #corePriceDisplay_desktop_feature_div'), function (e) {
-        return e.offsetParent !== null && /\$\s*\d/.test(textOf(e));
-      });
-      if (pel) priceText = textOf(pel).replace(FINANCE, ' ');
+      var PRICE_EL = '[data-test="module-product-detail-price-v2"], [data-test="product-price"], ' +
+        '[data-testid="price-wrap"], [itemprop="price"], .priceView-hero-price, [data-testid="customer-price"], ' +
+        '#corePrice_feature_div, #corePriceDisplay_desktop_feature_div';
+      var box = document.querySelector(PRICE_EL);
+      if (box && box.scrollIntoView) box.scrollIntoView({ block: 'center' });
+      for (var w = 0; w < 10 && !priceText; w++) {
+        var pel = Array.prototype.find.call(document.querySelectorAll(PRICE_EL), function (e) {
+          return e.offsetParent !== null && /\$\s*\d/.test(textOf(e));
+        });
+        if (pel) priceText = textOf(pel).replace(FINANCE, ' ');
+        else await zsSleep(400);
+      }
     }
     PRICE.lastIndex = 0;
     if (!area && !priceText) { say('Could not read the price. Not adding automatically; check the page.'); return; }
