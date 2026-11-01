@@ -1,0 +1,3 @@
+t+5.2s  ""  https://www.amazon.com/dp/B01GGKZ2SC
+t+11.3s  "Adding to cart ($10.05)…"  https://www.amazon.com/dp/B01GGKZ2SC
+t+15.0s  ""  https://www.amazon.com/gp/cart/view.html

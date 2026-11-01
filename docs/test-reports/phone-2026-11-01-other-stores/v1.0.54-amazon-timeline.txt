@@ -1,0 +1,9 @@
+t+0.2s isKeyguardShowing=true 
+t+3.9s isKeyguardShowing=true Amazon: opening the page to add one to your cart… BACK ADD 
+t+7.4s isKeyguardShowing=true Amazon: opening the page to add one to your cart… BACK ADD 
+t+11.4s isKeyguardShowing=true Amazon: Adding to cart ($10.05)… BACK ADD 
+t+15.2s isKeyguardShowing=true Amazon: added. Check out from here. BACK ADD 
+t+19.0s isKeyguardShowing=true Amazon: added. Check out from here. BACK ADD 
+t+23.0s isKeyguardShowing=true Amazon: added. Check out from here. BACK ADD 
+t+27.1s isKeyguardShowing=true Amazon: added. Check out from here. BACK ADD 
+t+30.9s isKeyguardShowing=true Amazon: added. Check out from here. BACK ADD 

@@ -75,3 +75,28 @@ Amazon: Sold by "Shipped and sold by Amazon.com
 (t+9.2 s, v1.0.51-amazon-1, account header blanked.) The Amazon fallback takes the whole text of `#merchantInfoFeature_feature_div .offer-display-feature-text`, which starts "Shipped and sold by Amazon.com" and repeats with whitespace and "Shipper / Seller". `OWN.Amazon` is `/^\s*amazon(\.com)?\b/i`, which needs the text to start with "Amazon". Fix direction: match the seller name inside that text (e.g. strip a leading "Shipped and sold by" / "Sold by", or test `/\bsold by amazon(\.com)?\b|seller\s*amazon(\.com)?\b/i`), and collapse whitespace before quoting it in the status. The status bar currently shows it across three lines.
 
 Amazon was signed in for this run (the earlier "not signed in" in this report is out of date). Cart icon 0. Nothing added, so nothing to remove.
+
+## v1.0.54 (commit 2050ae9), 17:58–18:03
+
+Run per [docs/dome.md](../dome.md). Phone screen off and locked for each alert. The alarm was cut off with `KEYCODE_SHIFT_LEFT` as soon as Checkout took focus. Nothing was ordered. Statuses come from a 200 ms poll of `window.__zsaStatus` over DevTools (`*-status-poll.txt`) plus status-bar snapshots every ~4 s (`*-timeline.txt`).
+
+| Store | Signed in | Price read | Result | Landed on | Timing from the API call |
+|---|---|---|---|---|---|
+| Amazon | yes | **$10.05** (page price $9.49) | **PASS**, with a price note | `amazon.com/gp/cart/view.html`, cable qty 1 at $9.49 | product page t+5.2 s, "Adding to cart ($10.05)…" t+11.3 s, cart t+15.0 s |
+| Walmart | no (guest) | **$6.88** (correct) | **PASS** (regression check) | `walmart.com/cart`, "Cart contains 1 item Total Amount $6.88" | product page t+6.9 s, "Adding to cart ($6.88)…" t+9.3 s, `/pac` t+10.3 s, `/cart` t+10.9 s |
+
+### Update and reminder
+
+v1.0.51 → **v1.0.54** from the in-app banner at about 17:59 (done by the tester this time). `USE_FULL_SCREEN_INTENT` stayed **allow** after the install, so there was no reset and no "Allow full-screen alerts again" reminder. That's correct behaviour, but steps 1.2–1.4 couldn't be exercised. The last two updates (→1.0.51, →1.0.54) didn't reset the permission; the earlier ones (→1.0.28, .37, .39, .45) did.
+
+### Amazon
+
+Exact statuses: "Amazon: opening the page to add one to your cart…" → "Amazon: Adding to cart ($10.05)…" (v1.0.54-amazon-1, account header blanked) → "Amazon: added. Check out from here." on the cart. The seller fix works: "Shipped and sold by Amazon.com" now passes.
+
+Cart afterwards: Amazon Basics cable B01GGKZ2SC, qty 1, $9.49, subtotal $9.49. Deleted → "… was removed." One unrelated item that was already in the owner's cart was left untouched. Cart screenshots aren't committed because they show the owner's own items.
+
+**Price note:** the guard quoted **$10.05**, which is Amazon's "Typical price: $10.05" / "List Price: $10.05", not the $9.49 being charged. Amazon has no `MAIN_PRICE` entry, so the guard reads every amount in the buy area and takes the highest. The charged price is in `.priceToPay` (`apex-pricetopay-value`, "$9 . 49"). Impact: for the console, a listing with a list price over $560 but a selling price at or under $560 would be refused as "likely a reseller". Suggest `'Amazon': '.priceToPay'` (or `#corePrice_feature_div .priceToPay`) in `MAIN_PRICE`.
+
+### Walmart
+
+Same as v1.0.51: "opening the page…" → "Adding to cart ($6.88)…" → `/pac?id=14823970315&ip=6.88&qt=1…` → the app loaded `/cart` → "Walmart: added. Check out from here.", 1 item $6.88 (v1.0.54-walmart-1). Removed → "Cart contains 0 items Total Amount $0.00" (v1.0.54-walmart-2).
