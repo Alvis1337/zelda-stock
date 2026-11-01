@@ -157,6 +157,14 @@ export class Browser {
     return rows;
   }
 
+  /** Deletes one site's cookies (and its subdomains'). Only ever called by hand, via the API. */
+  async clearCookies(site) {
+    const domain = new RegExp(`(^|\\.)${site.replace(/[.]/g, '\\.')}$`);
+    const count = (await this.context.cookies()).filter((c) => domain.test(c.domain)).length;
+    await this.context.clearCookies({ domain });
+    return count;
+  }
+
   /** Leave the last retailer page so its scripts don't run between checks. */
   async idle() {
     if (this.page && !this.page.isClosed()) await this.page.goto('about:blank').catch(() => {});

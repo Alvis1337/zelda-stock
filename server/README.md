@@ -115,8 +115,10 @@ State of each retailer (2026-11-01, from the screenshots):
 - Best Buy: the profile's Akamai bot-manager cookies got flagged after several
   pod restarts in a few minutes; with them every load is
   `ERR_HTTP2_PROTOCOL_ERROR`, without them the page loads. The server does not
-  clear them on its own. To reset by hand: pause, open the noVNC view, Chrome
-  menu > Settings > Privacy > Site data > bestbuy.com > delete, resume.
+  clear them on its own. To reset by hand, run `deploy/clear-site-cookies.sh`
+  (pauses, clears bestbuy.com cookies via `POST /api/clear-cookies`, resumes,
+  checks, prints Best Buy's rows), or do it in the noVNC view under
+  `chrome://settings/content/all`.
 - GameStop answers for the location it detects from the IP (43068), so the three
   store lookups return the same "no store within 100 miles" answer.
 

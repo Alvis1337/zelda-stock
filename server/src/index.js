@@ -180,6 +180,16 @@ const server = http.createServer(async (req, res) => {
           'https://www.bestbuy.com/product/switch-2-the-legend-of-zelda-40th-anniversary-edition/J7GSL57HTY');
         return send(200, { sent: await notify({ type: 'test', row: r, key: 'test' }) });
       }
+      case 'POST /api/clear-cookies': {
+        // Manual reset of one site's cookies in the server's browser (see deploy/clear-site-cookies.sh).
+        const b = await readJson(req).catch(() => ({}));
+        const site = String(b.site || '').toLowerCase();
+        if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(site)) return send(400, { error: 'site must be a domain like bestbuy.com' });
+        if (running) return send(409, { error: 'a run is in progress; pause and wait for it to stop' });
+        const cleared = await browser.clearCookies(site);
+        log(`cleared ${cleared} cookie(s) for ${site} (manual)`);
+        return send(200, { site, cleared });
+      }
       case 'POST /api/pause':
         paused = true;
         log('paused');
