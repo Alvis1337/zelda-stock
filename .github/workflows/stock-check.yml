@@ -22,12 +22,14 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run stock check
-        env:
-          BESTBUY_API_KEY: ${{ secrets.BESTBUY_API_KEY }}
+        # Best Buy is skipped until the API key is approved; then remove
+        # "--skip bestbuy" below and add the BESTBUY_API_KEY secret here:
+        #   env:
+        #     BESTBUY_API_KEY: ${{ secrets.BESTBUY_API_KEY }}
         run: |
           set +e
           python3 zelda_stock.py --zip ${{ inputs.zips || '45701 45780 43130' }} \
-            --radius ${{ inputs.radius || '50' }} | tee result.txt
+            --radius ${{ inputs.radius || '50' }} --skip bestbuy | tee result.txt
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           cat result.txt >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
