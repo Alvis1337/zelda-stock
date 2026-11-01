@@ -1,0 +1,10 @@
+# Chromium profile (cookies keep bot checks rare) + state.json. Default StorageClass (Longhorn).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zelda-stock-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi

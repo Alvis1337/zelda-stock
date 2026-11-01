@@ -1,4 +1,4 @@
-// Runs on https://www.target.com/s?searchTerm=... inside the app's WebView.
+// Runs on https://www.target.com/s?searchTerm=... in the app (WebView) or on the server (Chromium).
 (async function () {
   var P = ZS_PARAMS, rows = [], KEY = '9f36aeafbe60771e321a7cc95a78140772ab3e96';
   try {

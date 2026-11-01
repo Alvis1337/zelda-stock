@@ -1,4 +1,4 @@
-// Shared helpers. ZS_JOB and ZS_PARAMS are defined by the app before this runs.
+// Shared helpers. ZS_JOB, ZS_PARAMS and the ZS bridge are defined by the app or server before this runs.
 window.zsSleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
 window.zsFinish = function (obj) { ZS.done(ZS_JOB, JSON.stringify(obj)); };
 window.zsBlocked = function () {

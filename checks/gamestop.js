@@ -1,4 +1,4 @@
-// Runs on https://www.gamestop.com/search/?q=... inside the app's WebView.
+// Runs on https://www.gamestop.com/search/?q=... in the app (WebView) or on the server (Chromium).
 (async function () {
   var rows = [];
   try {

@@ -40,6 +40,9 @@ android {
 
     buildFeatures { buildConfig true }
 
+    // Retailer scripts live in the top-level checks/ folder, shared with the server.
+    sourceSets { main { assets.srcDirs += ['../../checks'] } }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17

@@ -1,0 +1,7 @@
+.git
+.github
+android
+deploy
+server/node_modules
+server/data
+*.md

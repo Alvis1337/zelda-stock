@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zelda-stock
+data:
+  ZIPS: "45780 43130 45701"
+  RADIUS_MI: "50"
+  INTERVAL_MIN: "5"
+  AMAZON_EVERY_MIN: "10"
+  HEARTBEAT_HOUR: "9"
+  TZ: America/New_York
+  # ntfy until the app has FCM; then "fcm,ntfy".
+  PUSH: ntfy
+  NTFY_URL: https://ntfy.sh
+  FCM_TOPIC: zelda-oot
+  GOOGLE_APPLICATION_CREDENTIALS: /secrets/fcm/sa.json

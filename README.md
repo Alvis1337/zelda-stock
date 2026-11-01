@@ -14,6 +14,8 @@ ambiguous responses are reported as UNVERIFIED.
 
 ## Moving the checks off the phone
 
-The Android app's background watcher is heavy on battery. The plan for running
-the checks on a home k8s cluster and turning the app into a push-notification
-client is in [server/README.md](server/README.md).
+The Android app's background watcher is heavy on battery. The checks now also
+run as a server on the home k8s cluster (`server/`, `deploy/k8s/`), pushing
+alerts through ntfy. How to deploy it, and the plan for turning the app into a
+push-only client, are in [server/README.md](server/README.md). The retailer
+scripts live in `checks/`, shared by the app and the server.

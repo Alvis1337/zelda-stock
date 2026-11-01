@@ -1,7 +1,84 @@
 # Zelda stock server (k8s) + thin Android client
 
-**Status: design / handoff doc. Nothing in `server/` or `deploy/` is built yet.**
-Open this repo in a new session and say "implement `server/README.md`".
+**Status: server, image and manifests are built (rollout step 1). The Android
+thin-client changes (step 3) are not done yet.** The design below is kept as the
+reference; where the build differs from it, the "Running it" section wins.
+
+## Running it
+
+What's in the repo:
+
+- `checks/`: the retailer scripts, shared by the app (`assets.srcDirs`) and the server.
+- `server/`: Node + Playwright. `src/index.js` (scheduler + API), `browser.js`
+  (persistent phone-emulated Chromium, script bridge), `jobs.js`, `state.js`
+  (alert rules), `notify/` (ntfy, FCM).
+- `deploy/k8s/`: kustomize manifests for namespace `zelda-stock`.
+- `.github/workflows/server.yml`: builds `linux/amd64` (every node is
+  amd64) and pushes `ghcr.io/alvis1337/zelda-stock-server:<sha>`; pushes to
+  `main` also move `:latest`.
+
+Differences from the design:
+
+- noVNC runs **inside the server container** (Xvfb `:99`, x11vnc and websockify
+  bound to `127.0.0.1`), not as a sidecar. Only `kubectl port-forward` can reach
+  it; the Service exposes 8080 only. Set `VNC=0` to turn it off.
+- `pwuser` is **uid/gid 1001** in the Playwright noble image, so the pod runs as
+  1001 with `fsGroup: 1001`.
+- `PUSH` defaults to `ntfy` until the app has FCM.
+- A retailer counts as blocked for a run when **none** of its rows is
+  `IN STOCK`, `OUT OF STOCK` or `NONE FOUND`. While a retailer is unreadable its
+  in-stock keys are carried over, so in stock → blocked → in stock rings once.
+- `/healthz` fails if a run has been going for over 20 minutes, so k8s restarts
+  a wedged browser. The pod also exits if Chromium dies.
+
+Local run (needs `npx playwright install --with-deps chromium` and `xvfb`):
+
+```
+cd server && npm ci
+DATA_DIR=./data API_TOKEN=dev xvfb-run -a -s "-screen 0 1080x2200x24" node src/index.js
+curl -H "Authorization: Bearer dev" localhost:8080/api/status
+```
+
+First deploy:
+
+```
+# 1. After the image workflow has run on main. If the GHCR package is private,
+#    make it public (package settings) or add an imagePullSecret named ghcr.
+kubectl create namespace zelda-stock
+kubectl -n zelda-stock create secret generic zelda-stock \
+  --from-literal=API_TOKEN=$(openssl rand -hex 24) \
+  --from-literal=NTFY_TOPIC=zelda-$(openssl rand -hex 8)
+kubectl -n zelda-stock get secret zelda-stock -o jsonpath='{.data.NTFY_TOPIC}' | base64 -d
+#    ^ subscribe to this topic in the ntfy app (server ntfy.sh)
+kubectl apply -k deploy/k8s
+kubectl -n zelda-stock logs -f deploy/zelda-stock-server
+
+# 2. Test the alert end to end with the phone locked.
+kubectl -n zelda-stock port-forward svc/zelda-stock-server 8080:8080 &
+TOKEN=$(kubectl -n zelda-stock get secret zelda-stock -o jsonpath='{.data.API_TOKEN}' | base64 -d)
+curl -X POST -H "Authorization: Bearer $TOKEN" localhost:8080/api/test-alert
+```
+
+New image: `kubectl -n zelda-stock rollout restart deploy/zelda-stock-server`
+(the Deployment runs `:latest` with `imagePullPolicy: Always`). ConfigMap and
+Secret changes restart the pod on their own (Stakater Reloader annotation).
+
+Solving a bot check / signing in to Amazon:
+
+```
+curl -X POST -H "Authorization: Bearer $TOKEN" localhost:8080/api/pause
+kubectl -n zelda-stock port-forward deploy/zelda-stock-server 6080:6080
+# open http://localhost:6080/vnc.html, solve it / sign in, then:
+curl -X POST -H "Authorization: Bearer $TOKEN" localhost:8080/api/resume
+curl -X POST -H "Authorization: Bearer $TOKEN" localhost:8080/api/check
+```
+
+First real run (from the dev box, residential IP, 2026-11-01): 9 jobs in 77 s.
+Best Buy, Walmart, GameStop online + 3 store lookups, Nintendo and Amazon all
+read `OUT OF STOCK`. **Target read `UNVERIFIED`**: its search page answers
+"We couldn't find a match for your search" plus "Oops! something went wrong"
+even for `zelda switch 2`, so the search API is turning this browser away.
+Check it in the noVNC view after the first deploy.
 
 ## Why
 
@@ -195,7 +272,7 @@ Everything under `/api/` requires `Authorization: Bearer $API_TOKEN`.
 | `AMAZON_EVERY_MIN` | `10` | |
 | `TZ` | `America/New_York` | heartbeat time |
 | `DATA_DIR` | `/data` | profile + state.json |
-| `PUSH` | `fcm` | `fcm`, `ntfy`, or `fcm,ntfy` |
+| `PUSH` | `ntfy` | `fcm`, `ntfy`, or `fcm,ntfy` |
 | `FCM_TOPIC` | `zelda-oot` | |
 | `GOOGLE_APPLICATION_CREDENTIALS` | `/secrets/fcm/sa.json` | Secret |
 | `NTFY_URL` / `NTFY_TOPIC` / `NTFY_TOKEN` | – | Secret, only for ntfy |
@@ -265,7 +342,7 @@ Namespace `zelda-stock`, managed with kustomize in `deploy/k8s/`.
   strategy: { type: Recreate }          # one browser profile, RWO volume
   template:
     spec:
-      securityContext: { fsGroup: 1000 }
+      securityContext: { fsGroup: 1001 }   # pwuser is 1001 in the noble image
       containers:
         - name: server
           image: ghcr.io/alvis1337/zelda-stock-server:latest

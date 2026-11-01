@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zelda-stock-server
+  annotations:
+    reloader.stakater.com/auto: "true"   # restart on ConfigMap / Secret changes
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # one browser profile on an RWO volume
+  selector:
+    matchLabels:
+      app: zelda-stock-server
+  template:
+    metadata:
+      labels:
+        app: zelda-stock-server
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001   # pwuser in the Playwright image
+        runAsGroup: 1001
+        fsGroup: 1001
+      # If the GHCR package is private:
+      # imagePullSecrets: [{ name: ghcr }]
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: server
+          image: ghcr.io/alvis1337/zelda-stock-server:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: zelda-stock
+          env:
+            - name: API_TOKEN
+              valueFrom:
+                secretKeyRef: { name: zelda-stock, key: API_TOKEN }
+            - name: NTFY_TOPIC
+              valueFrom:
+                secretKeyRef: { name: zelda-stock, key: NTFY_TOPIC, optional: true }
+            - name: NTFY_TOKEN
+              valueFrom:
+                secretKeyRef: { name: zelda-stock, key: NTFY_TOKEN, optional: true }
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: novnc
+              containerPort: 6080
+          resources:
+            requests: { cpu: 250m, memory: 768Mi }
+            limits: { memory: 2Gi }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: fcm, mountPath: /secrets/fcm, readOnly: true }
+            - { name: dshm, mountPath: /dev/shm }   # Chromium needs more than the default 64Mi
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: zelda-stock-data
+        - name: fcm
+          secret:
+            secretName: zelda-stock
+            optional: true   # sa.json only exists once FCM is set up
+            items: [{ key: sa.json, path: sa.json }]
+        - name: dshm
+          emptyDir: { medium: Memory, sizeLimit: 512Mi }

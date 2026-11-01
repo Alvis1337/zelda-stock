@@ -1,0 +1,13 @@
+# API only. The noVNC view (6080) listens on localhost in the pod; reach it with
+# kubectl port-forward deploy/zelda-stock-server 6080:6080.
+apiVersion: v1
+kind: Service
+metadata:
+  name: zelda-stock-server
+spec:
+  selector:
+    app: zelda-stock-server
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

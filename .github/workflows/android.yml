@@ -2,7 +2,7 @@ name: Build Android app
 
 on:
   push:
-    paths: ["android/**", ".github/workflows/android.yml"]
+    paths: ["android/**", "checks/**", ".github/workflows/android.yml"]
   workflow_dispatch:
 
 permissions:
