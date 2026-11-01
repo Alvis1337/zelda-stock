@@ -4,30 +4,41 @@
   try {
     if (zsBlocked()) return zsFinish({ blocked: true, rows: [] });
     // 1. Find Zelda Switch 2 products on the search page (page renders with JS, so poll).
+    // A product can show more than once (sponsored slot + organic result); keep every card.
     var items = {};
+    var tcinOf = function (x) { var o = (x.getAttribute('href') || '').match(/\/A-(\d+)/); return o && o[1]; };
+    var carts = function (el) {
+      return Array.prototype.filter.call(el.querySelectorAll('button'), function (b) { return /add to cart/i.test(b.innerText || ''); }).length;
+    };
     for (var i = 0; i < 20; i++) {
       document.querySelectorAll('a[href*="/A-"]').forEach(function (a) {
-        var m = a.getAttribute('href').match(/\/A-(\d+)/);
+        var t = tcinOf(a);
         var title = (a.getAttribute('aria-label') || a.innerText || '').trim();
-        if (m && zsIsConsole(title) && !items[m[1]]) {
-          // The card is the largest ancestor that still holds only this product's links
-          // (closest() can stop at the image wrapper, whose text is empty).
-          var card = a;
-          while (card.parentElement && card.parentElement !== document.body &&
-                 !Array.prototype.some.call(card.parentElement.querySelectorAll('a[href*="/A-"]'), function (x) {
-                   var o = x.getAttribute('href').match(/\/A-(\d+)/);
-                   return o && o[1] !== m[1];
-                 })) card = card.parentElement;
-          var ctext = card.innerText || '';
-          // Skip Target Plus marketplace listings (sold by another seller).
-          var sold = ctext.match(/sold (?:and shipped )?by ([^\n]+)/i);
-          if (sold && !/target/i.test(sold[1])) return;
-          items[m[1]] = { title: title.split('\n')[0], card: ctext };
-        }
+        if (!t || !zsIsConsole(title)) return;
+        // The card is the largest ancestor that still holds only this product: no other
+        // product's link and at most one Add to cart button (sponsored slots link elsewhere).
+        // closest() can stop at the image wrapper, whose text is empty.
+        var card = a;
+        while (card.parentElement && card.parentElement !== document.body &&
+               !Array.prototype.some.call(card.parentElement.querySelectorAll('a[href*="/A-"]'), function (x) {
+                 var o = tcinOf(x); return o && o !== t;
+               }) && carts(card.parentElement) <= 1) card = card.parentElement;
+        var it = items[t] || (items[t] = { title: title.split('\n')[0], cards: [] });
+        if (it.cards.indexOf(card) < 0) it.cards.push(card);
       });
       if (Object.keys(items).length && i > 4) break;
       await zsSleep(750);
     }
+    // Read the cards only now: stock wording renders after the link does.
+    await zsSleep(1500);
+    Object.keys(items).forEach(function (t) {
+      var texts = items[t].cards.filter(function (c) { return c.isConnected; })
+        .map(function (c) { return (c.innerText || '').toLowerCase(); }).filter(Boolean);
+      // Skip Target Plus marketplace listings (sold by another seller).
+      var sold = texts.join('\n').match(/sold (?:and shipped )?by ([^\n]+)/i);
+      if (sold && !/target/i.test(sold[1])) delete items[t];
+      else items[t].texts = texts;
+    });
     var tcins = Object.keys(items);
     if (!tcins.length) {
       var pr = zsPageProblem();
@@ -35,12 +46,18 @@
       rows.push(zsRow('Target', 'search', 'online', 'NONE FOUND', 'no Zelda 40th Anniversary console sold by Target on the search page', location.href));
       return zsFinish({ rows: rows });
     }
-    // 2. Online signal straight from the product card text.
+    // 2. Online signal from the product card text. Out-of-stock wording on any card wins;
+    // in stock needs a card with exactly one price and one Add to cart (so it is this product's).
     tcins.forEach(function (t) {
-      var it = items[t], url = 'https://www.target.com/p/-/A-' + t, c = it.card.toLowerCase();
-      if (/sold out|out of stock/.test(c)) rows.push(zsRow('Target', it.title, 'online', 'OUT OF STOCK', 'card says sold out / out of stock', url));
-      else if (/add to cart/.test(c)) rows.push(zsRow('Target', it.title, 'online', 'IN STOCK', 'card shows Add to cart' + (/pre-?order/.test(c) ? ' (preorder)' : ''), url));
-      else if (c) rows.push(zsRow('Target', it.title, 'online', 'UNVERIFIED', 'card shows no stock wording', url));
+      var it = items[t], url = 'https://www.target.com/p/-/A-' + t;
+      var count = function (c, re) { return (c.match(re) || []).length; };
+      if (it.texts.some(function (c) { return /sold out|out of stock/.test(c); })) {
+        rows.push(zsRow('Target', it.title, 'online', 'OUT OF STOCK', 'card says sold out / out of stock', url));
+      } else {
+        var own = it.texts.filter(function (c) { return count(c, /add to cart/g) === 1 && count(c, /\$\d[\d,]*\.\d\d/g) <= 2; });
+        if (own.length) rows.push(zsRow('Target', it.title, 'online', 'IN STOCK', 'card shows Add to cart' + (own.some(function (c) { return /pre-?order/.test(c); }) ? ' (preorder)' : ''), url));
+        else if (it.texts.length) rows.push(zsRow('Target', it.title, 'online', 'UNVERIFIED', 'card shows no stock wording', url));
+      }
     });
     // 3. Store stock near each ZIP, using the same API target.com calls.
     for (var t of tcins) {
