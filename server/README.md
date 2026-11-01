@@ -311,7 +311,7 @@ Everything under `/api/` requires `Authorization: Bearer $API_TOKEN`.
 | `ZIPS` | `45780 43130 45701` | |
 | `RADIUS_MI` | `50` | |
 | `INTERVAL_MIN` | `5` | with jitter |
-| `SLOW_RETAILERS` | `Amazon:10,Target:10` | at most every N min; last rows reused in between |
+| `SLOW_RETAILERS` | `Amazon:10,Target:10,Best_Buy:10` | at most every N min; last rows reused in between |
 | `TZ` | `America/New_York` | heartbeat time |
 | `DATA_DIR` | `/data` | profile + state.json |
 | `PUSH` | `ntfy` | `fcm`, `ntfy`, or `fcm,ntfy` |

@@ -7,7 +7,7 @@ data:
   RADIUS_MI: "50"
   INTERVAL_MIN: "5"
   # Retailers that throttle frequent visits: at most every N minutes, last result reused in between.
-  SLOW_RETAILERS: "Amazon:10,Target:10"
+  SLOW_RETAILERS: "Amazon:10,Target:10,Best_Buy:10"
   HEARTBEAT_HOUR: "9"
   TZ: America/New_York
   # up = UnifiedPush to the app (registered via /api/register); ntfy = the topic, as a backup.

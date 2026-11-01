@@ -108,7 +108,8 @@ export class Browser {
       } catch (e) {
         await page.waitForTimeout(1_500); // let the error page finish committing first
         await page.goto('about:blank').catch(() => {});
-        if (attempt === 1 && /net::ERR_|interrupted by another navigation/.test(short(e))) {
+        // ERR_HTTP2_PROTOCOL_ERROR is how Best Buy refuses a flagged session; retrying only adds visits.
+        if (attempt === 1 && /net::ERR_|interrupted by another navigation/.test(short(e)) && !/ERR_HTTP2_PROTOCOL_ERROR/.test(short(e))) {
           await page.waitForTimeout(3_000);
           continue;
         }

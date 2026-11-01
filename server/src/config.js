@@ -12,8 +12,8 @@ export const config = {
   radius: num(env.RADIUS_MI, 50),
   intervalMin: Math.max(5, num(env.INTERVAL_MIN, 5)), // a full run takes 2-4 min
   // Retailers that throttle frequent visits run at most every N minutes; in between,
-  // their last rows are shown again. "Retailer:minutes,..."
-  slowRetailers: Object.fromEntries(list(env.SLOW_RETAILERS, 'Amazon:10,Target:10')
+  // their last rows are shown again. "Retailer:minutes,...", "_" for a space in a name.
+  slowRetailers: Object.fromEntries(list(env.SLOW_RETAILERS, 'Amazon:10,Target:10,Best_Buy:10')
     .map((s) => s.split(':')).filter(([, m]) => m && !isNaN(Number(m))).map(([r, m]) => [r.replace(/_/g, ' '), Number(m)])),
   heartbeatHour: num(env.HEARTBEAT_HOUR, 9),
   blockedAfterRuns: num(env.BLOCKED_AFTER_RUNS, 3),
