@@ -140,8 +140,13 @@ const server = http.createServer(async (req, res) => {
           path: `/api/shots/${f}`, text: `/api/shots/${f.replace(/\.png$/, '.txt')}` })));
       }
       case 'POST /api/register': {
-        const b = await readJson(req);
-        const count = up.add(b);
+        let b, count;
+        try {
+          b = await readJson(req);
+          count = up.add(b);
+        } catch (e) {
+          return send(400, { error: String(e.message || e) });
+        }
         log(`registered push endpoint ${new URL(b.endpoint).host} (${b.device || 'unknown device'}), ${count} total`);
         return send(200, { registered: true });
       }

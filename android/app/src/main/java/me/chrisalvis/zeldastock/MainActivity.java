@@ -86,8 +86,10 @@ public class MainActivity extends Activity {
         refreshPushUi();
         if (Server.configured(this)) {
             refreshStatus();
-            // Keep the server's copy of this phone's endpoint fresh (it may have restarted from scratch).
-            if (System.currentTimeMillis() - prefs.getLong("push_registered_at", 0) > 12 * 3_600_000L) {
+            // Retry a failed registration, and keep the server's copy fresh (it may have lost its data).
+            String endpoint = prefs.getString("push_endpoint", "");
+            if (!endpoint.equals(prefs.getString("push_registered", ""))
+                    || System.currentTimeMillis() - prefs.getLong("push_registered_at", 0) > 12 * 3_600_000L) {
                 Server.registerPush(this, (r, e) -> refreshPushUi());
             }
         }
