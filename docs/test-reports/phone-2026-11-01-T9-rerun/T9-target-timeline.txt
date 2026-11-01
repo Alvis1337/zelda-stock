@@ -1,0 +1,13 @@
+t+0.1s isKeyguardShowing=true 
+t+3.5s isKeyguardShowing=true Target: opening the page to add one to your cart… BACK ADD 
+t+6.3s isKeyguardShowing=true Target: Adding to cart ($50.00)… BACK ADD 
+t+9.5s isKeyguardShowing=true Target: added. Check out from here. BACK ADD 
+t+12.6s isKeyguardShowing=true Target: added. Check out from here. BACK ADD 
+t+16.4s isKeyguardShowing=true Target: added. Check out from here. BACK ADD 
+t+20.4s isKeyguardShowing=true Target: added. Check out from here. BACK ADD 
+t+24.4s isKeyguardShowing=true Target: added. Check out from here. BACK ADD 
+t+28.4s isKeyguardShowing=true Target: added. Check out from here. BACK ADD 
+t+32.0s isKeyguardShowing=true Target: added. Check out from here. BACK ADD 
+t+36.1s isKeyguardShowing=true Target: added. Check out from here. BACK ADD 
+t+40.1s isKeyguardShowing=true Target: added. Check out from here. BACK ADD 
+t+44.2s isKeyguardShowing=true Target: added. Check out from here. BACK ADD 

@@ -1,0 +1,10 @@
+t+0.1s isKeyguardShowing=true 
+t+3.5s isKeyguardShowing=true Best Buy: opening the page to add one to your cart… BACK ADD 
+t+7.2s isKeyguardShowing=true Best Buy: Added. Opening cart: check out from here. BACK ADD 
+t+15.9s isKeyguardShowing=true Best Buy: Added. Opening cart: check out from here. BACK ADD 
+t+19.1s isKeyguardShowing=true Best Buy: Added. Opening cart: check out from here. BACK ADD 
+t+22.2s isKeyguardShowing=true Best Buy: Added. Opening cart: check out from here. BACK ADD 
+t+25.4s isKeyguardShowing=true Best Buy: Added. Opening cart: check out from here. BACK ADD 
+t+29.2s isKeyguardShowing=true Best Buy: Added. Opening cart: check out from here. BACK ADD 
+t+32.5s isKeyguardShowing=true Best Buy: Added. Opening cart: check out from here. BACK ADD 
+t+36.3s isKeyguardShowing=true Best Buy: Added. Opening cart: check out from here. BACK ADD 
