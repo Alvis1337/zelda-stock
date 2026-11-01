@@ -1,0 +1,2 @@
+t+5.6s  ""  https://www.amazon.com/dp/B01GGKZ2SC
+t+9.2s  "Sold by \"Shipped and sold by Amazon.com \n                                                    Shipped and sold by Amazon.com         Shipper / Seller       Amazon.com\", not Amazon. Not adding."  https://www.amazon.com/dp/B01GGKZ2SC

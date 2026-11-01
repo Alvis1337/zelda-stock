@@ -1,0 +1,5 @@
+t+0.5s  ""  https://www.walmart.com/cart
+t+6.2s  ""  https://www.walmart.com/ip/onn-10ft-USB-C-Fast-Charging-Cable-USB-IF-Certified-Black/14823
+t+8.1s  "Adding to cart ($6.88)…"  https://www.walmart.com/ip/onn-10ft-USB-C-Fast-Charging-Cable-USB-IF-Certified-Black/14823
+t+9.2s  ""  https://www.walmart.com/pac?id=14823970315&ip=6.88&qt=1&g=FC&oId=<redacted>
+t+9.7s  ""  https://www.walmart.com/cart

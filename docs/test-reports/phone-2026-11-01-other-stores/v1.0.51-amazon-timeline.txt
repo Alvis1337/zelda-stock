@@ -1,0 +1,9 @@
+t+0.3s isKeyguardShowing=true 
+t+3.5s isKeyguardShowing=true Amazon: opening the page to add one to your cart… BACK ADD 
+t+6.4s isKeyguardShowing=true Amazon: opening the page to add one to your cart… BACK ADD 
+t+10.7s isKeyguardShowing=true BACK ADD RELOAD 
+t+15.4s isKeyguardShowing=true BACK ADD RELOAD 
+t+19.7s isKeyguardShowing=true BACK ADD RELOAD 
+t+24.3s isKeyguardShowing=true BACK ADD RELOAD 
+t+29.0s isKeyguardShowing=true BACK ADD RELOAD 
+t+33.4s isKeyguardShowing=true BACK ADD RELOAD 

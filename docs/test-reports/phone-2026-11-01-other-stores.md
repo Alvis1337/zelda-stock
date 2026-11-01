@@ -33,3 +33,45 @@ GameStop has no Fast checkout button (the server only watches it), so it wasn't 
 - t+3.5 s "Nintendo: Adding to cart ($6.99)…" over the lock screen; t+7.4 s "Nintendo: added. Check out from here." on the cart: 2 items, $562.55 (nintendo-1).
 - Removed only the pin → "Removed The Legend of Zelda™ Korok Enamel Pin from your cart.", "Estimated total (1 item)" (nintendo-2). The console is still there.
 - The Checkout WebView was already on nintendo.com from browsing for the item, which may explain the quick load (earlier T15 saw 10–20 s for a cold Nintendo page).
+
+## v1.0.51 (commit 47b0dd6), 17:42–17:47
+
+Run per [docs/dome.md](../dome.md). Phone screen off and locked for each alert. The alarm was cut off with `KEYCODE_SHIFT_LEFT` as soon as Checkout took focus, at the owner's request. Nothing was ordered; both carts were emptied.
+
+| Store | Signed in | Price read | Result | Landed on | Timing from the API call |
+|---|---|---|---|---|---|
+| Walmart | no (guest) | **$6.88** (correct) | **PASS** | `walmart.com/cart`, 1 item $6.88 | run 2: product page t+6.2 s, "Adding to cart ($6.88)…" t+8.1 s, `/pac` t+9.2 s, `/cart` t+9.7 s. Run 1: "added. Check out from here." on the cart by t+6.8 s |
+| Amazon | yes | — (refused before the price) | **FAIL**: false refusal at the seller check | product page, nothing added (cart 0) | page t+5.6 s, refusal t+9.2 s |
+
+### 1. Update and reminder
+
+- v1.0.48 → **v1.0.51** at 17:42:33. The owner tapped the install and allowed full-screen alerts during this run, so the "Allow full-screen alerts again" reminder wasn't seen or photographed.
+- After that: `USE_FULL_SCREEN_INTENT: allow`, the app shows "Alerts can open checkout on the lock screen by themselves.", and **no reminder in the shade**. The only app notification left was an older "In stock at Test: this is only a test". So the reminder cleared once it was allowed, as intended.
+
+### 2. Walmart
+
+Item check before the run (DevTools on the page): `[itemprop="price"]` "$6.88", "Sold and shipped by Walmart", Add to cart present, cart 0 items.
+
+Exact statuses. Run 2 polled `window.__zsaStatus` every 200 ms (`v1.0.51-walmart-run2-status-poll.txt`); the status bar was read every ~3–4 s:
+- "Walmart: opening the page to add one to your cart…" (run 1 t+3.9 s, v1.0.51-walmart-1)
+- "Adding to cart ($6.88)…" (run 2 t+8.1 s)
+- Add to cart → `walmart.com/pac?id=14823970315&ip=6.88&qt=1…` (t+9.2 s) → the app loaded `walmart.com/cart` itself (t+9.7 s)
+- "Walmart: added. Check out from here." on the cart, "Cart contains 1 item Total Amount $6.88" (v1.0.51-walmart-2)
+- The intermediate "added. Opening cart…" was too short-lived for the 3 s status-bar snapshots to catch.
+
+Removed → "Cart contains 0 items Total Amount $0.00" (v1.0.51-walmart-3, -4).
+
+Small note: in run 2 Checkout was still open from run 1, and for the first ~4 s the status bar still read run 1's "added. Check out from here." while the new alert loaded the product page. A fresh Checkout (run 1) showed "opening the page…" correctly.
+
+### 3. Amazon
+
+The title and the 4,000-character check are fixed: it now gets past them. It fails at the seller check instead:
+
+```
+Amazon: Sold by "Shipped and sold by Amazon.com
+                                                    Shipped and sold by Amazon.com         Shipper / Seller       Amazon.com", not Amazon. Not adding.
+```
+
+(t+9.2 s, v1.0.51-amazon-1, account header blanked.) The Amazon fallback takes the whole text of `#merchantInfoFeature_feature_div .offer-display-feature-text`, which starts "Shipped and sold by Amazon.com" and repeats with whitespace and "Shipper / Seller". `OWN.Amazon` is `/^\s*amazon(\.com)?\b/i`, which needs the text to start with "Amazon". Fix direction: match the seller name inside that text (e.g. strip a leading "Shipped and sold by" / "Sold by", or test `/\bsold by amazon(\.com)?\b|seller\s*amazon(\.com)?\b/i`), and collapse whitespace before quoting it in the status. The status bar currently shows it across three lines.
+
+Amazon was signed in for this run (the earlier "not signed in" in this report is out of date). Cart icon 0. Nothing added, so nothing to remove.
