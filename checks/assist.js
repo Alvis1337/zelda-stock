@@ -28,23 +28,60 @@
     }
     if (!btn) { say('No active Add to cart button. It may have sold out.'); return; }
 
-    // 2. Read the buy area: from the product title down to the button.
-    var h1 = document.querySelector('h1, #productTitle');
+    // 2. Read the buy area: from the product title to the button, whichever comes first.
+    // Only text a screen reader would read: Best Buy and Walmart draw the price twice,
+    // once as "$22.99" and once as aria-hidden "$" "22" "99", which joined reads $2299.
+    var h1 = Array.prototype.find.call(document.querySelectorAll('h1, #productTitle'), function (h) { return h.offsetParent !== null; });
+    var textOf = function (root, range) {
+      var parts = [], w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), n;
+      while ((n = w.nextNode())) {
+        if (range && !range.intersectsNode(n)) continue;
+        var el = n.parentElement;
+        if (!el || el.closest('[aria-hidden="true"], [hidden], script, style, noscript')) continue;
+        parts.push(n.nodeValue);
+      }
+      return parts.join(' ').replace(/\s+/g, ' ');
+    };
     var area = '';
     try {
       var rg = document.createRange();
-      rg.setStartBefore(h1 || document.body.firstChild);
-      rg.setEndAfter(btn);
-      area = rg.cloneContents().textContent || '';
+      var first = h1 && (h1.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_PRECEDING) ? btn : h1;
+      rg.setStartBefore(first || document.body.firstChild);
+      rg.setEndAfter(first === btn ? h1 : btn);
+      area = textOf(rg.commonAncestorContainer, rg);
     } catch (e) { area = ''; }
+    var spread = area.length;
+    var PRICE = /\$\s*(\d{1,3}(?:,\d{3})+|\d+)(?:\s*\.\s*(\d{2})|\s+(\d{2}))?(?!\d)(?!\s*\/\s*mo)/gi;
+    // No price between title and button (layouts differ): use the closest block around the button that has one.
+    if (!PRICE.test(area)) {
+      for (var el = btn.parentElement, up = 0; el && up < 12; el = el.parentElement, up++) {
+        var t = textOf(el);
+        if (/\$\s*\d/.test(t)) { area = t; break; }
+      }
+    }
+    PRICE.lastIndex = 0;
     if (!area) { say('Could not read the price. Not adding automatically; check the page.'); return; }
+    // When the product is sold out, the first Add to cart on the page belongs to another
+    // product (a carousel). Walmart names the product in the button's label; elsewhere a
+    // long stretch of page between the title and the button gives it away.
+    var norm = function (x) { return (x || '').toLowerCase().replace(/[^a-z0-9]+/g, ''); };
+    var forName = (btn.getAttribute('aria-label') || '').match(/^\s*add to cart\s*[-–:]\s*(.+)$/i);
+    if ((forName && h1 && norm(forName[1]).slice(0, 24) !== norm(h1.innerText).slice(0, 24)) || spread > 4000) {
+      say('The Add to cart button is for another product; this one looks sold out. Not adding.'); return;
+    }
 
     // 3. Price guard: every dollar amount in the buy area (not monthly payments).
     var prices = [];
-    area.replace(/\$\s*([\d,]{2,7})(?:\s*\.?\s*(\d{2}))?(?!\s*\/\s*mo)/gi, function (m, d, c) {
-      prices.push(parseFloat(d.replace(/,/g, '') + '.' + (c || '00')));
+    area.replace(PRICE, function (m, d, c1, c2) {
+      prices.push(parseFloat(d.replace(/,/g, '') + '.' + (c1 || c2 || '00')));
       return m;
     });
+    // Last resort: the price the page declares for search engines.
+    if (!prices.length) {
+      var meta = document.querySelector('[itemprop="price"][content], meta[property="product:price:amount"]');
+      var mp = meta && parseFloat(String(meta.getAttribute('content')).replace(/[^\d.]/g, ''));
+      if (mp) prices.push(mp);
+    }
     var top = prices.length ? Math.max.apply(null, prices) : null;
     if (top === null) { say('Could not read the price. Not adding automatically; check the page.'); return; }
     if (top > CAP) { say('Price shows $' + top.toFixed(2) + ' (over $' + CAP + '). Not adding: likely a reseller.'); return; }
@@ -55,7 +92,7 @@
       var mi = document.querySelector('#merchantInfoFeature_feature_div .offer-display-feature-text, #sellerProfileTriggerId');
       if (mi) sm = [null, mi.textContent.trim()];
     }
-    if (sm && !OWN[R].test(sm[1])) { say('Sold by "' + sm[1].trim() + '", not ' + R + '. Not adding.'); return; }
+    if (sm && !OWN[R].test(sm[1])) { say('Sold by "' + sm[1].replace(/\s+\d.*$/, '').trim() + '", not ' + R + '. Not adding.'); return; }
     if (R === 'Amazon' && !sm) { say('Could not confirm Amazon is the seller. Not adding; check the page.'); return; }
 
     // 5. Quantity 1, add, then go to the cart.

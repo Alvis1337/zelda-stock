@@ -63,11 +63,14 @@ public final class Server {
     /** Blocking call, for background threads. Throws with a readable message on failure. */
     public static JSONObject callSync(Context c, String method, String path, JSONObject body) throws Exception {
         if (!configured(c)) throw new Exception("add the Cloudflare client ID and secret in Server settings");
+        // Offline, each of Cloudflare's addresses would time out in turn (a minute or more).
+        android.net.ConnectivityManager cm = c.getSystemService(android.net.ConnectivityManager.class);
+        if (cm != null && cm.getActiveNetwork() == null) throw new Exception("no internet connection");
         SharedPreferences p = Results.prefs(c);
         HttpURLConnection conn = (HttpURLConnection) new URL(baseUrl(c) + path).openConnection();
         try {
             conn.setRequestMethod(method);
-            conn.setConnectTimeout(15_000);
+            conn.setConnectTimeout(8_000);
             conn.setReadTimeout(20_000);
             conn.setInstanceFollowRedirects(false); // an Access login redirect means the token was refused
             conn.setRequestProperty("CF-Access-Client-Id", p.getString("cf_id", "").trim());

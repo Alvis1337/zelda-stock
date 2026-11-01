@@ -158,7 +158,7 @@ public final class Results {
         // Tapping the alert opens the in-app checkout, which adds one to your cart.
         Intent open = url.isEmpty()
                 ? new Intent(c, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                : CheckoutActivity.intent(c, url, r.optString("retailer"), assist);
+                : CheckoutActivity.intent(c, url, r.optString("retailer"), assist).putExtra(CheckoutActivity.EXTRA_NOTIF_ID, key(r).hashCode());
         PendingIntent pi = PendingIntent.getActivity(c, key(r).hashCode(), open,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         String title = "In stock at " + r.optString("retailer") + ": " + r.optString("where");
@@ -171,11 +171,17 @@ public final class Results {
                 .setContentIntent(pi)
                 .setAutoCancel(true)
                 .setCategory(Notification.CATEGORY_ALARM)
+                // Its own group: Android bundles ungrouped alerts, and tapping the bundle opens the app, not checkout.
+                .setGroup("instock|" + key(r))
                 .setVisibility(Notification.VISIBILITY_PUBLIC);
         // With the screen off or locked, open checkout right away instead of waiting for a tap.
         if (assist && !url.isEmpty() && canFullScreen(c)) b.setFullScreenIntent(pi, true);
         Notification n = b.build();
         n.flags |= Notification.FLAG_INSISTENT; // keeps ringing until you open or dismiss it
-        c.getSystemService(NotificationManager.class).notify(key(r).hashCode(), n);
+        NotificationManager nm = c.getSystemService(NotificationManager.class);
+        // Updating a notification that's still in the shade doesn't fire its full-screen intent
+        // again; cancel first so a repeat alert for the same store opens checkout too.
+        nm.cancel(key(r).hashCode());
+        nm.notify(key(r).hashCode(), n);
     }
 }

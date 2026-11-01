@@ -37,6 +37,9 @@ public class CheckoutActivity extends Activity {
     public static final String EXTRA_URL = "url";
     public static final String EXTRA_RETAILER = "retailer";
     public static final String EXTRA_ASSIST = "assist";
+    public static final String EXTRA_NOTIF_ID = "notif_id";
+    /** How long the alarm rings over the lock screen if nobody touches the phone. */
+    private static final long ALARM_MS = 60_000;
     /** Highest price assist will ever add to the cart (MSRP is $519.99). */
     public static final int MAX_PRICE = 560;
 
@@ -44,6 +47,7 @@ public class CheckoutActivity extends Activity {
     private TextView status;
     private String retailer, productUrl;
     private boolean assistPending;
+    private android.media.Ringtone alarm;
 
     public static Intent intent(Context c, String url, String retailer, boolean assist) {
         return new Intent(c, CheckoutActivity.class)
@@ -66,7 +70,8 @@ public class CheckoutActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.WHITE);
+        // Same dark as the bar, so the white status bar icons above it show.
+        root.setBackgroundColor(Color.parseColor("#17212B"));
 
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.VERTICAL);
@@ -118,6 +123,7 @@ public class CheckoutActivity extends Activity {
                 }
             }
         });
+        web.setBackgroundColor(Color.WHITE);
         root.addView(web, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         root.setOnApplyWindowInsetsListener((v, insets) -> {
@@ -148,6 +154,43 @@ public class CheckoutActivity extends Activity {
                 ? retailer + ": opening the page to add one to your cart…"
                 : (retailer == null ? "" : retailer + ": ") + "sign in or browse. The app keeps you signed in.");
         if (productUrl != null) web.loadUrl(productUrl);
+        if (assistPending) ringOverLockScreen(i.getIntExtra(EXTRA_NOTIF_ID, 0));
+    }
+
+    /**
+     * Opened by an in-stock alert over the lock screen: ring here, until the phone is
+     * touched. The notification's own sound can be muted by a connected watch
+     * (Pixel Watch mutes phone notification effects), an app's alarm audio can't.
+     */
+    private void ringOverLockScreen(int notifId) {
+        android.app.KeyguardManager km = getSystemService(android.app.KeyguardManager.class);
+        if (km == null || !km.isKeyguardLocked()) return; // unlocked: you tapped the alert yourself
+        if (notifId != 0) getSystemService(android.app.NotificationManager.class).cancel(notifId); // one sound, not two
+        stopAlarm();
+        try {
+            alarm = android.media.RingtoneManager.getRingtone(this,
+                    android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM));
+            if (alarm == null) return;
+            alarm.setAudioAttributes(new android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build());
+            if (Build.VERSION.SDK_INT >= 28) alarm.setLooping(true);
+            alarm.play();
+            web.postDelayed(this::stopAlarm, ALARM_MS);
+        } catch (Exception e) {
+            alarm = null;
+        }
+    }
+
+    private void stopAlarm() {
+        if (alarm != null) { alarm.stop(); alarm = null; }
+    }
+
+    @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        stopAlarm();
     }
 
     private static boolean sameHost(String a, String b) {
@@ -190,6 +233,7 @@ public class CheckoutActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        stopAlarm();
         CookieManager.getInstance().flush();
         web.destroy();
         super.onDestroy();

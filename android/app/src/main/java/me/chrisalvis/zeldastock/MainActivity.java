@@ -316,6 +316,16 @@ public class MainActivity extends Activity {
         root.addView(resultsBox);
 
         setContentView(scroll);
+        // The screen is light: draw the status bar icons dark so they show.
+        if (Build.VERSION.SDK_INT >= 30) {
+            getWindow().getInsetsController().setSystemBarsAppearance(
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                            | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                            | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        }
     }
 
     private void showSettings(boolean show) {
@@ -432,9 +442,11 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------- Results
     private void refreshStatus() {
         if (!Server.configured(this)) return;
+        statusText.setText("Refreshing…");
         Server.call(this, "GET", "/api/status", null, (res, err) -> {
             if (err != null) {
-                statusText.setText("Could not reach the server: " + err);
+                statusText.setText("Could not reach the server: " + err + ". Showing the last results.");
+                serverText.setTextColor(WARN);
                 return;
             }
             Results.saveStatus(this, res);
@@ -474,8 +486,10 @@ public class MainActivity extends Activity {
             if (zips == null || zips.length() == 0) sb.append('?');
             for (int i = 0; zips != null && i < zips.length(); i++) sb.append(i > 0 ? ", " : "").append(zips.optString(i));
         }
+        long cached = prefs.getLong("last_status_at", 0);
+        boolean old = cached > 0 && System.currentTimeMillis() - cached > 2 * 60_000L;
         JSONObject running = s.optJSONObject("running");
-        if (running != null) {
+        if (running != null && !old) {
             sb.append(sb.length() > 0 ? "\n" : "").append("Checking ").append(running.optString("progress", "…")).append(" now…");
         } else if (s.optBoolean("paused")) {
             sb.append(sb.length() > 0 ? "\n" : "").append("Paused on the server (someone is using its browser view).");
@@ -484,7 +498,6 @@ public class MainActivity extends Activity {
             if (next > 0) sb.append(sb.length() > 0 ? "\n" : "").append("Next check ")
                     .append(DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(next)));
         }
-        long cached = prefs.getLong("last_status_at", 0);
         if (cached > 0 && System.currentTimeMillis() - cached > 5 * 60_000L) {
             sb.append("\n(saved ").append(DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
                     .format(new Date(cached))).append(")");

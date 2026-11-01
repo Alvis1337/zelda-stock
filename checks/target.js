@@ -84,7 +84,7 @@
                 'qty ' + Math.floor(q) + (a.address_line1 ? ', ' + a.address_line1 + ', ' + (a.city || '') : ''), purl));
             }
           });
-          if (!hit) rows.push(zsRow('Target', title, locs.length + ' stores within ' + P.radius + ' mi of ' + z, 'OUT OF STOCK', '0 available at every store', purl));
+          if (!hit) rows.push(zsRow('Target', title, locs.length + (locs.length === 1 ? ' store' : ' stores') + ' within ' + P.radius + ' mi of ' + z, 'OUT OF STOCK', '0 available at every store', purl));
         } catch (e) {
           rows.push(zsRow('Target', title, 'stores near ' + z, 'UNVERIFIED', String(e), purl));
         }
