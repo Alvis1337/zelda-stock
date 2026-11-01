@@ -12,13 +12,16 @@ import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
-import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import androidx.webkit.UserAgentMetadata;
+import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewFeature;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -48,6 +51,7 @@ public class CheckoutActivity extends Activity {
     private String retailer, productUrl;
     private boolean assistPending;
     private android.media.Ringtone alarm;
+    private boolean assisting;
 
     public static Intent intent(Context c, String url, String retailer, boolean assist) {
         return new Intent(c, CheckoutActivity.class)
@@ -86,7 +90,7 @@ public class CheckoutActivity extends Activity {
         buttons.setOrientation(LinearLayout.HORIZONTAL);
         Button back = new Button(this); back.setText("Back");
         back.setOnClickListener(v -> { if (web.canGoBack()) web.goBack(); else finish(); });
-        Button add = new Button(this); add.setText("Add to cart");
+        Button add = new Button(this); add.setText("Add");
         add.setOnClickListener(v -> {
             String u = web.getUrl();
             if (productUrl != null && (u == null || !sameHost(u, productUrl) || u.contains("/cart"))) {
@@ -96,9 +100,18 @@ public class CheckoutActivity extends Activity {
         });
         Button reload = new Button(this); reload.setText("Reload");
         reload.setOnClickListener(v -> web.reload());
+        // For a store that won't let the in-app browser sign in: same page in your browser.
+        Button chrome = new Button(this); chrome.setText("Chrome");
+        chrome.setOnClickListener(v -> {
+            String u = web.getUrl() != null ? web.getUrl() : productUrl;
+            if (u == null) return;
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(u)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (Exception e) { status.setText("No browser app found."); }
+        });
         Button close = new Button(this); close.setText("Close");
         close.setOnClickListener(v -> finish());
-        for (Button x : new Button[]{back, add, reload, close}) {
+        for (Button x : new Button[]{back, add, reload, chrome, close}) {
             buttons.addView(x, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         }
         bar.addView(buttons);
@@ -110,12 +123,17 @@ public class CheckoutActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setSupportMultipleWindows(false);
         s.setUserAgentString(s.getUserAgentString().replace("; wv", "").replace("Version/4.0 ", ""));
+        looksLikeChrome(s);
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
-        web.addJavascriptInterface(new Bridge(), "ZSA");
         web.setWebViewClient(new WebViewClient() {
             @Override public void onPageFinished(WebView v, String url) {
                 CookieManager.getInstance().flush();
+                // assist.js's last word is lost when it navigates to the cart; say it here.
+                if (assisting && url.contains("/cart")) {
+                    assisting = false;
+                    status.setText(retailer + ": added. Check out from here.");
+                }
                 // Product URLs redirect to longer slugs, so match on the site, not the exact URL.
                 if (assistPending && productUrl != null && sameHost(url, productUrl)) {
                     assistPending = false;
@@ -203,15 +221,49 @@ public class CheckoutActivity extends Activity {
     private void runAssist() {
         if (retailer == null) return;
         status.setText(retailer + ": checking price and seller…");
-        String params = "var ZSA_PARAMS = {retailer: " + org.json.JSONObject.quote(retailer)
+        String params = "window.__zsaStatus = ''; var ZSA_PARAMS = {retailer: " + org.json.JSONObject.quote(retailer)
                 + ", maxPrice: " + MAX_PRICE + "};\n";
         web.evaluateJavascript(params + asset("common.js") + asset("assist.js"), null);
+        assisting = true;
+        pollAssistStatus(System.currentTimeMillis() + 45_000);
     }
 
-    private final class Bridge {
-        @JavascriptInterface public void status(String text) {
-            runOnUiThread(() -> status.setText(retailer + ": " + text));
+    /**
+     * Sites (Target's sign-in among them) refuse embedded browsers. A WebView gives itself
+     * away by the X-Requested-With header (the app's package name) and by an
+     * "Android WebView" brand in the client hints; the user agent string is fixed above.
+     */
+    private static void looksLikeChrome(WebSettings s) {
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+            WebSettingsCompat.setRequestedWithHeaderOriginAllowList(s, java.util.Collections.emptySet());
         }
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.USER_AGENT_METADATA)) {
+            UserAgentMetadata m = WebSettingsCompat.getUserAgentMetadata(s);
+            java.util.List<UserAgentMetadata.BrandVersion> brands = new java.util.ArrayList<>();
+            for (UserAgentMetadata.BrandVersion b : m.getBrandVersionList()) {
+                brands.add(b.getBrand().contains("WebView")
+                        ? new UserAgentMetadata.BrandVersion.Builder(b).setBrand("Google Chrome").build()
+                        : b);
+            }
+            WebSettingsCompat.setUserAgentMetadata(s,
+                    new UserAgentMetadata.Builder(m).setBrandVersionList(brands).build());
+        }
+    }
+
+    /** assist.js reports progress in window.__zsaStatus; read it until it has finished. */
+    private void pollAssistStatus(long until) {
+        web.evaluateJavascript("window.__zsaStatus || ''", v -> {
+            String t = "";
+            try { t = String.valueOf(new org.json.JSONTokener(v).nextValue()); } catch (Exception ignored) { }
+            if (!t.isEmpty()) status.setText(retailer + ": " + t);
+            boolean added = t.startsWith("Added");
+            boolean stopped = t.contains("Not adding") || t.contains("not adding") || t.startsWith("No active")
+                    || t.startsWith("Bot check") || t.startsWith("Assist stopped") || t.contains("in-store only");
+            if (stopped) assisting = false;
+            if (added || stopped) return;
+            if (System.currentTimeMillis() < until) web.postDelayed(() -> pollAssistStatus(until), 400);
+            else assisting = false;
+        });
     }
 
     private String asset(String name) {

@@ -4,7 +4,8 @@
 // the seller is the retailer itself. It never touches captchas or queues.
 (async function () {
   var R = ZSA_PARAMS.retailer, CAP = ZSA_PARAMS.maxPrice;
-  var say = function (t) { try { ZSA.status(t); } catch (e) {} };
+  // The app polls window.__zsaStatus (no JS bridge object for sites to spot); ZSA is the old bridge.
+  var say = function (t) { window.__zsaStatus = t; try { ZSA.status(t); } catch (e) {} };
   var CART = {
     'Best Buy': 'https://www.bestbuy.com/cart',
     'Target': 'https://www.target.com/cart',
