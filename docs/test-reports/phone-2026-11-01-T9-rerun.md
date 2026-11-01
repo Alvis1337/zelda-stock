@@ -56,3 +56,24 @@ Impact: at Target the guard isn't checking the item's price. It's checking whate
 ## Evidence (`phone-2026-11-01-T9-rerun/`)
 
 T9-1 … T9-11 screenshots, `T9-bestbuy-timeline.txt` and `T9-target-timeline.txt` (status bar every ~3.5 s from the API call).
+
+## Target again on v1.0.42 (commit 8bc1112, price element instead of financing box), 16:16:22
+
+**FAIL, safely.** Checkout opened over the lock screen at t+3.4 s (T9-12). At t+6.2 s it said "Target: Could not read the price. Not adding automatically; check the page.", and that stayed (T9-13, `T9-target-v1.0.42-timeline.txt`). Nothing was added, and the cart stayed at 0 items.
+
+The fix did what it should: it no longer quotes the financing box. But the page had **no price to read**:
+
+- Price container `[data-test="module-product-detail-price-v2"]` is present, visible and **empty**. The other is `price-module-placeholder`. "14.99" doesn't appear anywhere in `document.documentElement.outerHTML`. The only dollar amounts in the DOM are the financing lines ("orders over $50", "payments of $3.75").
+- Reload with network capture: the signed-in request that fills the price module is blocked by Target's bot protection (HUMAN/PerimeterX):
+  ```
+  POST https://www.target.com/cdui_orchestrations/v1/pages/pdp/deferred_enrichment/modules?auth=false&…  → 200
+  POST https://www.target.com/cdui_orchestrations/v1/pages/pdp/deferred_enrichment/modules?auth=true&base_membership=true&…  → 435
+       {"appId":"PXGWPp4wUS","blockScript":"https://captcha.px-cdn.net/PXGWPp4wUS/captcha.js?…"}
+  ```
+  A few seconds later the page was replaced by Target's "Quick verification: Press & hold to confirm you're a human" (T9-14, reference id blanked). During the alert run itself no challenge was drawn. The price module just stayed empty, so the 435 there is inferred from the identical empty module, not captured.
+- In the 15:59 run (v1.0.39) the title-to-button range had no price either. That's why the old code fell back to the financing box. So Target probably wasn't serving the price to this WebView then either.
+
+So at Target the blocker is now bot protection on the signed-in session (it began after the sign-in earlier today; the guest page showed $14.99 in the first run), not the parser. Possible directions for the code session:
+- If the price module is empty but the `auth=false` response has the price, read it from there (or from `__NEXT_DATA__`/the redsky payload) instead of the DOM.
+- Or detect the 435 / Press-&-hold overlay and say "Target bot check: press & hold, then tap Add" instead of "Could not read the price".
+- Whether a solved challenge keeps the WebView clear for later alerts is untested. The challenge was left on screen for the user.

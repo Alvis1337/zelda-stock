@@ -1,0 +1,9 @@
+t+0.1s isKeyguardShowing=true 
+t+3.4s isKeyguardShowing=true Target: opening the page to add one to your cart… BACK ADD 
+t+6.2s isKeyguardShowing=true Target: Could not read the price. Not adding automatically; check the page. BACK ADD 
+t+9.4s isKeyguardShowing=true Target: Could not read the price. Not adding automatically; check the page. BACK ADD 
+t+13.1s isKeyguardShowing=true Target: Could not read the price. Not adding automatically; check the page. BACK ADD 
+t+17.3s isKeyguardShowing=true Target: Could not read the price. Not adding automatically; check the page. BACK ADD 
+t+21.0s isKeyguardShowing=true Target: Could not read the price. Not adding automatically; check the page. BACK ADD 
+t+24.8s isKeyguardShowing=true Target: Could not read the price. Not adding automatically; check the page. BACK ADD 
+t+28.5s isKeyguardShowing=true Target: Could not read the price. Not adding automatically; check the page. BACK ADD 
