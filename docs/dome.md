@@ -24,7 +24,7 @@ Earlier changes (commit 47b0dd6):
 
 ## 1. Update and the reminder
 
-1. `git pull`. Open the app and update from its banner to **v1.0.51** or newer
+1. `git pull`. Open the app and update from its banner to **v1.0.54** or newer
    (`adb shell dumpsys package me.chrisalvis.zeldastock | grep versionName`).
 2. Right after the install, the shade should show "Allow full-screen alerts again". 📸
 3. Tap it, allow full-screen alerts, go back to the app.
@@ -68,14 +68,16 @@ KEYCODE_SHIFT_LEFT`) as soon as Checkout takes focus stops it. Say in the report
 
 ## Report
 
-Append a section "v1.0.51 (commit 47b0dd6)" to
+Append a section "v1.0.54 (commit 2050ae9)" to
 [phone-2026-11-01-other-stores.md](test-reports/phone-2026-11-01-other-stores.md) with a
 table (store, price read, result, landed on), the exact status texts, and timings from the
 API call. Put screenshots and timelines in `docs/test-reports/phone-2026-11-01-other-stores/`
-prefixed `v1.0.51-`. Then:
+prefixed `v1.0.54-`. Then:
 
 ```bash
-git add docs/test-reports && git commit -m "Walmart and Amazon checkout on v1.0.51" && git push
+git add docs/test-reports && git commit -m "Amazon and Walmart checkout on v1.0.54" && git push
 ```
 
 Reply with the table.
+
+**Version for this run: v1.0.54** (commit 2050ae9, Amazon seller fix).
