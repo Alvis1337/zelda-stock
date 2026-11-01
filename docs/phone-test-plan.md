@@ -151,14 +151,18 @@ shade and paste the `dumpsys notification` lines for the app.
 3. Airplane mode off (`... airplane-mode disable`). Refresh works again.
 
 ### T14 Battery: the reason for all this
-1. `adb shell dumpsys batterystats --reset`, unplug or `adb shell dumpsys battery unplug`,
-   screen off, and leave the phone alone for **at least 60 minutes**.
+The phone stays on USB. `dumpsys battery unplug` makes Android treat it as on
+battery (batterystats counts, Doze works) while it charges. This test measures the
+app's wakeups, wakelocks, alarms and CPU time, not mAh, so charging doesn't matter.
+1. `adb shell dumpsys battery unplug` (required), then `adb shell dumpsys batterystats --reset`.
+   Screen off, and leave the phone alone for **at least 60 minutes**.
 2. Then:
    `adb shell dumpsys batterystats me.chrisalvis.zeldastock > docs/test-reports/<run>/T14-batterystats.txt`
    and `adb shell dumpsys batterystats | grep -iA3 "zeldastock" | head -60`.
-3. Report the app's wakelocks, alarms, wakeups, CPU time and estimated power use
-   for the window. Expected: next to nothing (only push-receiver wakeups if
-   alerts were sent). Restore with `adb shell dumpsys battery reset`.
+3. Report the app's wakelocks, alarms, wakeups and CPU time for the window.
+   Expected: next to nothing (only push-receiver wakeups if alerts were sent).
+   For contrast, note the same numbers for the ntfy app (`io.heckel.ntfy`).
+4. Restore: `adb shell dumpsys battery reset`.
 
 ### T15 Fast checkout sign-in pages
 Tap each store button under Fast checkout (Best Buy, Target, Walmart, Amazon,
