@@ -47,9 +47,11 @@
       text = panelText();
       if (answered(text)) break;
     }
+    // That early answer is for the location GameStop guessed (from the IP), which can be far
+    // enough from our ZIP to miss stores near it. Only trust it when it is our ZIP.
     if (answered(text) && /no store within/i.test(text)) {
       var early = text.replace(/\n/g, ' ').match(/no store within (\d+) miles of (\d{5})[^.]*inventory/i);
-      if (early) return done('OUT OF STOCK', 'stores within ' + early[1] + ' mi of ' + early[2], 'GameStop: no store currently has inventory' + (early[2] !== z ? ' (GameStop used ' + early[2] + ', near you)' : ''));
+      if (early && early[2] === z) return done('OUT OF STOCK', 'stores within ' + early[1] + ' mi of ' + z, 'GameStop: no store currently has inventory');
     }
     // Then ask for our ZIP the way a person would, so the site's own code sees it.
     var setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;

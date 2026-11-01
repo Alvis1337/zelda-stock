@@ -189,8 +189,11 @@ const server = http.createServer(async (req, res) => {
         if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(site)) return send(400, { error: 'site must be a domain like bestbuy.com' });
         if (running) return send(409, { error: 'a run is in progress; pause and wait for it to stop' });
         const cleared = await browser.clearCookies(site);
-        log(`cleared ${cleared} cookie(s) for ${site} (manual)`);
-        return send(200, { site, cleared });
+        // Let the next run visit this retailer even if it is on the slow cadence.
+        const retailer = String(b.retailer || '');
+        if (retailer && state.slow[retailer]) delete state.slow[retailer];
+        log(`cleared ${cleared} cookie(s) for ${site} (manual)${retailer ? ', ' + retailer + ' runs next check' : ''}`);
+        return send(200, { site, cleared, retailer: retailer || null });
       }
       case 'POST /api/pause':
         paused = true;

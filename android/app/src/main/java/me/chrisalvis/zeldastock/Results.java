@@ -82,7 +82,11 @@ public final class Results {
             // A real alert opens checkout and adds one to the cart; a test only opens the page.
             notifyInStock(c, r, "in_stock".equals(type));
         } else {
-            notifyServer(c, m.optString("title", "Zelda Stock server"), m.optString("body"), type.hashCode());
+            // One notification per retailer for blocked/recovered, so "recovered" replaces "blocked"
+            // and two blocked retailers don't overwrite each other.
+            String retailer = m.optString("retailer");
+            int id = ("server|" + (retailer.isEmpty() ? type : retailer)).hashCode();
+            notifyServer(c, m.optString("title", "Zelda Stock server"), m.optString("body"), id);
         }
     }
 

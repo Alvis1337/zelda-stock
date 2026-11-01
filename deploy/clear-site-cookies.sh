@@ -39,7 +39,7 @@ for _ in $(seq 120); do
 done
 
 echo "Clearing cookies for ${SITE}..."
-api POST /api/clear-cookies "{\"site\":\"${SITE}\"}"; echo
+api POST /api/clear-cookies "{\"site\":\"${SITE}\",\"retailer\":\"${RETAILER}\"}"; echo
 
 echo "Resuming and checking now..."
 api POST /api/resume >/dev/null; RESUMED=1
