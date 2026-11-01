@@ -6,7 +6,8 @@ data:
   ZIPS: "45780 43130 45701"
   RADIUS_MI: "50"
   INTERVAL_MIN: "5"
-  AMAZON_EVERY_MIN: "10"
+  # Retailers that throttle frequent visits: at most every N minutes, last result reused in between.
+  SLOW_RETAILERS: "Amazon:10,Target:10"
   HEARTBEAT_HOUR: "9"
   TZ: America/New_York
   # up = UnifiedPush to the app (registered via /api/register); ntfy = the topic, as a backup.

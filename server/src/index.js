@@ -7,7 +7,7 @@ import nodePath from 'node:path';
 import { accessEnabled, verifyAccess } from './access.js';
 import { Browser, row } from './browser.js';
 import { config } from './config.js';
-import { AMAZON, buildJobs } from './jobs.js';
+import { buildJobs } from './jobs.js';
 import { notify } from './notify/index.js';
 import * as up from './notify/up.js';
 import { applyRun, heartbeatDue, loadState, localTime, saveState } from './state.js';
@@ -33,11 +33,13 @@ async function runOnce(reason) {
   log(`run start (${reason})`);
   try {
     const at = new Date();
-    const amazonDue = !state.amazon || at - Date.parse(state.amazon.at) >= config.amazonEveryMin * 60_000;
+    // Retailers that throttle frequent visits sit out runs until their interval is up.
+    const skip = new Set(Object.entries(config.slowRetailers).filter(([r, min]) =>
+      state.slow[r] && at - Date.parse(state.slow[r].at) < min * 60_000).map(([r]) => r));
     const rows = [];
     const ran = new Set();
-    let amazonRows = null;
-    for (const job of buildJobs(config.zips, config.radius, amazonDue)) {
+    const fresh = {};
+    for (const job of buildJobs(config.zips, config.radius, skip)) {
       if (paused) { log('run stopped: paused'); return; }
       running.progress = job.retailer;
       const t0 = Date.now();
@@ -46,12 +48,12 @@ async function runOnce(reason) {
         rs.map((r) => `${r.status} [${r.where}] ${r.detail}`).join(' | '));
       rows.push(...rs);
       ran.add(job.retailer);
-      if (job.retailer === AMAZON) amazonRows = rs;
+      if (config.slowRetailers[job.retailer]) (fresh[job.retailer] ||= []).push(...rs);
     }
-    // Amazon throws bot checks at frequent visits; in between, show its last result again.
-    if (amazonRows) state.amazon = { at: at.toISOString(), rows: amazonRows };
-    else if (state.amazon) {
-      for (const r of state.amazon.rows) rows.push({ ...r, detail: `${r.detail} (checked ${clock(state.amazon.at)}; Amazon runs every ${config.amazonEveryMin} min)` });
+    for (const [r, rs] of Object.entries(fresh)) state.slow[r] = { at: at.toISOString(), rows: rs };
+    for (const r of skip) {
+      const last = state.slow[r];
+      for (const x of last.rows) rows.push({ ...x, detail: `${x.detail} (checked ${clock(last.at)}; ${r} runs every ${config.slowRetailers[r]} min)` });
     }
 
     const finished = new Date();
@@ -163,7 +165,7 @@ const server = http.createServer(async (req, res) => {
           running: running && { startedAt: running.startedAt, progress: running.progress },
           zips: config.zips,
           radius: config.radius,
-          amazonCheckedAt: state.amazon && state.amazon.at,
+          slowCheckedAt: Object.fromEntries(Object.entries(state.slow).map(([r, v]) => [r, v.at])),
           pushDevices: up.list().length,
           rows: state.rows,
         });

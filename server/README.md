@@ -275,7 +275,7 @@ Persist `state.json` on the PVC (no database needed):
 ```json
 { "lastRun": "2026-11-01T15:00:00Z", "rows": [ ... ],
   "inStockKeys": ["Walmart|<product>|<where>"],
-  "unverifiedStreak": { "Walmart": 3 }, "amazon": { "at": "...", "rows": [ ... ] } }
+  "unverifiedStreak": { "Walmart": 3 }, "slow": { "Amazon": { "at": "...", "rows": [ ... ] } } }
 ```
 
 - Row key is `retailer|product|where` (same as `Results.key`).
@@ -311,7 +311,7 @@ Everything under `/api/` requires `Authorization: Bearer $API_TOKEN`.
 | `ZIPS` | `45780 43130 45701` | |
 | `RADIUS_MI` | `50` | |
 | `INTERVAL_MIN` | `5` | with jitter |
-| `AMAZON_EVERY_MIN` | `10` | |
+| `SLOW_RETAILERS` | `Amazon:10,Target:10` | at most every N min; last rows reused in between |
 | `TZ` | `America/New_York` | heartbeat time |
 | `DATA_DIR` | `/data` | profile + state.json |
 | `PUSH` | `ntfy` | `fcm`, `ntfy`, or `fcm,ntfy` |

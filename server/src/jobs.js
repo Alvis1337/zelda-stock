@@ -1,9 +1,7 @@
 // The job table, mirroring StockChecker.run in the Android app.
 
-export const AMAZON = 'Amazon';
-
-/** Jobs for one run. `zips` is every ZIP, `includeAmazon` false reuses its last rows. */
-export function buildJobs(zips, radius, includeAmazon) {
+/** Jobs for one run. `zips` is every ZIP; retailers in `skip` reuse their last rows. */
+export function buildJobs(zips, radius, skip = new Set()) {
   const all = { zips, radius };
   const jobs = [
     { retailer: 'Best Buy', url: 'https://www.bestbuy.com/site/6691841.p?skuId=6691841',
@@ -24,9 +22,7 @@ export function buildJobs(zips, radius, includeAmazon) {
     { retailer: 'Nintendo', url: 'https://www.nintendo.com/us/store/products/nintendo-switch-2-the-legend-of-zelda-40th-anniversary-edition-121642/',
       script: 'nintendo.js', params: all, zip: zips[0] },
   ];
-  if (includeAmazon) {
-    jobs.push({ retailer: AMAZON, url: 'https://www.amazon.com/dp/B0HJ6F8L6V',
-      script: 'amazon.js', params: all, zip: zips[0] });
-  }
-  return jobs;
+  jobs.push({ retailer: 'Amazon', url: 'https://www.amazon.com/dp/B0HJ6F8L6V',
+    script: 'amazon.js', params: all, zip: zips[0] });
+  return jobs.filter((j) => !skip.has(j.retailer));
 }

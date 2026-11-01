@@ -10,13 +10,16 @@ export const key = (r) => `${r.retailer}|${r.product}|${r.where}`; // same as Re
 export function emptyState() {
   return {
     lastRun: null, rows: [], inStockKeys: [], unverifiedStreak: {},
-    amazon: null, heartbeatDate: null, runsSinceHeartbeat: 0,
+    slow: {}, heartbeatDate: null, runsSinceHeartbeat: 0,
   };
 }
 
 export function loadState(dataDir) {
   try {
-    return { ...emptyState(), ...JSON.parse(fs.readFileSync(path.join(dataDir, 'state.json'), 'utf8')) };
+    const s = { ...emptyState(), ...JSON.parse(fs.readFileSync(path.join(dataDir, 'state.json'), 'utf8')) };
+    // Before SLOW_RETAILERS only Amazon was throttled, kept under "amazon".
+    if (s.amazon) { s.slow = { Amazon: s.amazon, ...s.slow }; delete s.amazon; }
+    return s;
   } catch (e) {
     if (e.code !== 'ENOENT') console.error('state.json unreadable, starting fresh:', e.message);
     return emptyState();
