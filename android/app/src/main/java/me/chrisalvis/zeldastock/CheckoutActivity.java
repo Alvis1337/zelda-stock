@@ -24,6 +24,7 @@ import android.widget.TextView;
 
 import androidx.webkit.UserAgentMetadata;
 import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 
 import java.io.ByteArrayOutputStream;
@@ -138,6 +139,7 @@ public class CheckoutActivity extends Activity {
         s.setSupportMultipleWindows(false);
         s.setUserAgentString(s.getUserAgentString().replace("; wv", "").replace("Version/4.0 ", ""));
         looksLikeChrome(s);
+        noPasskeys(web);
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
         web.setWebViewClient(new WebViewClient() {
@@ -266,6 +268,29 @@ public class CheckoutActivity extends Activity {
             WebSettingsCompat.setUserAgentMetadata(s,
                     new UserAgentMetadata.Builder(m).setBrandVersionList(brands).build());
         }
+    }
+
+    /**
+     * The WebView has no passkey (WebAuthn) API, but it says it's Chrome, so Target's sign-in
+     * calls PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable() unchecked,
+     * throws, and Continue does nothing (docs/test-reports/target-signin-2026-11-01.md).
+     * Before Target's scripts run, define PublicKeyCredential as "no passkeys on this device",
+     * so the page takes its password / code path.
+     */
+    private static void noPasskeys(WebView web) {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) return;
+        String js = "(function () {\n"
+                + "  if (typeof window.PublicKeyCredential !== 'undefined') return;\n"
+                + "  function PublicKeyCredential() { throw new TypeError('Illegal constructor'); }\n"
+                + "  var no = function () { return Promise.resolve(false); };\n"
+                + "  PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = no;\n"
+                + "  PublicKeyCredential.isConditionalMediationAvailable = no;\n"
+                + "  PublicKeyCredential.getClientCapabilities = function () { return Promise.resolve({}); };\n"
+                + "  Object.defineProperty(window, 'PublicKeyCredential', { value: PublicKeyCredential, writable: true, configurable: true });\n"
+                + "})();";
+        java.util.Set<String> target = new java.util.HashSet<>(java.util.Arrays.asList(
+                "https://target.com", "https://*.target.com"));
+        WebViewCompat.addDocumentStartJavaScript(web, js, target);
     }
 
     /** assist.js reports progress in window.__zsaStatus; read it until it has finished. */
