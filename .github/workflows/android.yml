@@ -1,0 +1,70 @@
+name: Build Android app
+
+on:
+  push:
+    paths: ["android/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so the commit count (version) is right
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+      - name: Version
+        id: v
+        run: |
+          N=$(git rev-list --count HEAD)
+          echo "code=$N" >> "$GITHUB_OUTPUT"
+          echo "tag=v1.0.$N" >> "$GITHUB_OUTPUT"
+      - name: Signing key
+        env:
+          KS_B64: ${{ secrets.ZS_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ZS_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/zs.jks"
+            echo "ZS_KEYSTORE=$RUNNER_TEMP/zs.jks" >> "$GITHUB_ENV"
+            echo "ZS_KEYSTORE_PASSWORD=$KS_PASS" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No ZS_KEYSTORE_B64 secret; signing with a throwaway debug key"
+          fi
+      - name: Build APK
+        working-directory: android
+        run: gradle --no-daemon assembleRelease -PversionCode=${{ steps.v.outputs.code }}
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk zelda-stock.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zelda-stock-apk
+          path: zelda-stock.apk
+      - name: Publish release (the in-app updater reads the latest one)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.v.outputs.tag }}
+        run: |
+          gh release delete "$TAG" --yes --cleanup-tag || true
+          gh release create "$TAG" zelda-stock.apk --target "$GITHUB_SHA" --latest \
+            --title "Zelda Stock $TAG" \
+            --notes "$(git log -1 --pretty=%s) (built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7})"
+          # Keep the old fixed download link working too.
+          gh release delete apk-latest --yes --cleanup-tag || true
+          gh release create apk-latest zelda-stock.apk --target "$GITHUB_SHA" --prerelease \
+            --title "Zelda Stock app (latest build)" \
+            --notes "Same APK as $TAG. Download zelda-stock.apk on your phone and open it to install."
