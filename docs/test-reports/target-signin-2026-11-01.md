@@ -67,3 +67,18 @@ on Continue.
 
 - `target-signin-2026-11-01/cdp.log`: Runtime, Log and Network events for 30 s around the tap. The challenge, credential id and telemetry key are redacted, and the repeated pre-tap exception is collapsed.
 - `target-signin-2026-11-01/after-continue.png`: the page after Continue, unchanged, with the email field blanked.
+
+## Retest on v1.0.39 (commit 5b3d130, `PublicKeyCredential` stub), 15:52
+
+**Fixed.** Continue now moves to the next step.
+
+- Page load: no `isUserVerifyingPlatformAuthenticatorAvailable` exception. The probe now gets `typeof PublicKeyCredential` = `"function"`.
+- After Continue, no exceptions, and the flow goes on:
+  1. `POST …/passwordless_preauthentications` → 200 (WebAuthn challenge, one allowed credential, as before)
+  2. `POST …/username_validations?client_id=ecom-web-1.0.0&signin_amr=true` → **202** `{"actions":["create_session_signin"],"username":"<redacted>","amr":["passkey","email"]}`
+  3. `POST …/passwordless_preauthentications` → 200 (`allow_credentials: []`)
+- The page now reads "Sign in to your account" with two options: **Use a passkey** and **Get a code**. There's no password option, because the account's sign-in methods are passkey and email.
+- Next step for the user: tap **Get a code** and enter the emailed code. **Use a passkey** won't work in the WebView, since the stub reports no authenticator. Neither option was tapped during this test.
+- The update reset full-screen alerts to deny again, as on 1.0.37. They were re-allowed.
+
+Screenshot: `target-signin-2026-11-01/v1.0.39-after-continue.png`, with the email blanked.
