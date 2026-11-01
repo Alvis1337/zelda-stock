@@ -68,7 +68,9 @@
       'Best Buy': '[data-testid="LARGE_profile"] [data-testid="price-block-customer-price"]',
       'Target': '[data-test="module-product-detail-price-v2"]',
       // Not the title-to-button text: it carries promos ("earn a $35 welcome bonus").
-      'Walmart': '[itemprop="price"]'
+      'Walmart': '[itemprop="price"]',
+      // What you pay, not "Typical price" / "List Price" (the highest amount in the buy box).
+      'Amazon': '#corePrice_feature_div .priceToPay, #corePriceDisplay_desktop_feature_div .priceToPay, .priceToPay'
     };
     var priceText = '';
     var main = MAIN_PRICE[R] && document.querySelector(MAIN_PRICE[R]);
