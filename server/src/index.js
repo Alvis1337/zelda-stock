@@ -10,9 +10,10 @@ import { config } from './config.js';
 import { buildJobs } from './jobs.js';
 import { notify } from './notify/index.js';
 import * as up from './notify/up.js';
-import { applyRun, heartbeatDue, loadState, localTime, saveState } from './state.js';
+import { applyRun, heartbeatDue, key, loadState, localTime, saveState } from './state.js';
 
 const STUCK_MS = 20 * 60_000; // a run normally takes 2-4 min; past this, let k8s restart the pod
+const RECHECK_WAIT_MS = 5_000;
 
 const browser = new Browser();
 let state = loadState(config.dataDir);
@@ -42,10 +43,22 @@ async function runOnce(reason) {
     for (const job of buildJobs(config.zips, config.radius, skip)) {
       if (paused) { log('run stopped: paused'); return; }
       running.progress = job.retailer;
+      const label = `${job.retailer} (${job.script}${job.params.zips.length === 1 ? ' ' + job.zip : ''})`;
       const t0 = Date.now();
-      const rs = await browser.runJob(job, ++jobSeq);
-      log(`  ${job.retailer} (${job.script}${job.params.zips.length === 1 ? ' ' + job.zip : ''}) ${((Date.now() - t0) / 1000).toFixed(1)}s:`,
-        rs.map((r) => `${r.status} [${r.where}] ${r.detail}`).join(' | '));
+      let rs = await browser.runJob(job, ++jobSeq);
+      log(`  ${label} ${((Date.now() - t0) / 1000).toFixed(1)}s:`, rs.map((r) => `${r.status} [${r.where}] ${r.detail}`).join(' | '));
+      // A new in-stock read rings the alarm and starts checkout assist, so read the page
+      // again before believing it. The second read's rows are the job's result.
+      if (rs.some((r) => r.status === 'IN STOCK' && !state.inStockKeys.includes(key(r)))) {
+        await new Promise((r) => setTimeout(r, RECHECK_WAIT_MS));
+        const again = await browser.runJob(job, ++jobSeq);
+        const confirmed = new Set(again.filter((r) => r.status === 'IN STOCK').map(key));
+        log(`  ${label} recheck:`, again.map((r) => `${r.status} [${r.where}] ${r.detail}`).join(' | '));
+        for (const r of rs) {
+          if (r.status === 'IN STOCK' && !confirmed.has(key(r))) log(`  not confirmed, no alert: ${key(r)} (${r.detail})`);
+        }
+        rs = again;
+      }
       rows.push(...rs);
       ran.add(job.retailer);
       if (config.slowRetailers[job.retailer]) (fresh[job.retailer] ||= []).push(...rs);

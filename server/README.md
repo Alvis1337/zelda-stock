@@ -43,6 +43,9 @@ Differences from the design:
 - A retailer counts as blocked for a run when **none** of its rows is
   `IN STOCK`, `OUT OF STOCK` or `NONE FOUND`. While a retailer is unreadable its
   in-stock keys are carried over, so in stock → blocked → in stock rings once.
+- A new `IN STOCK` read is never alerted on its own: the server waits 5 s and
+  runs that job again, and only the second read's rows count. A false read costs
+  one extra page visit; a real restock alerts about 30 s later.
 - `/healthz` fails if a run has been going for over 20 minutes, so k8s restarts
   a wedged browser. The pod also exits if Chromium dies.
 
