@@ -78,7 +78,10 @@ Best Buy, Walmart, GameStop online + 3 store lookups, Nintendo and Amazon all
 read `OUT OF STOCK`. **Target read `UNVERIFIED`**: its search page answers
 "We couldn't find a match for your search" plus "Oops! something went wrong"
 even for `zelda switch 2`, so the search API is turning this browser away.
-Check it in the noVNC view after the first deploy.
+
+First run in the cluster (same day): 52 s, same results, except that Target
+found the product but its store API (redsky) answered **HTTP 435**, Target's
+bot block. Check Target in the noVNC view.
 
 ## Why
 

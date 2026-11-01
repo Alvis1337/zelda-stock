@@ -15,7 +15,7 @@ COPY --chmod=755 server/entrypoint.sh ./
 COPY checks ./checks
 
 # pwuser is uid/gid 1001 in this image; the k8s securityContext uses the same.
-RUN mkdir -p /data && chown pwuser:pwuser /data
+RUN mkdir -p /data /tmp/.X11-unix && chown pwuser:pwuser /data && chmod 1777 /tmp/.X11-unix
 USER pwuser
 ENV NODE_ENV=production DATA_DIR=/data CHECKS_DIR=/app/checks
 EXPOSE 8080

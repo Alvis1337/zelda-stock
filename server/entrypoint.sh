@@ -4,7 +4,8 @@
 set -euo pipefail
 export DISPLAY=:99
 rm -f /tmp/.X99-lock /tmp/.X11-unix/X99
-Xvfb :99 -screen 0 1080x2200x24 -nolisten tcp &
+# Xvfb is chatty about keymaps; if it fails, the browser launch fails and says so.
+Xvfb :99 -screen 0 1080x2200x24 -nolisten tcp >/dev/null 2>&1 &
 for _ in $(seq 50); do [ -e /tmp/.X11-unix/X99 ] && break; sleep 0.1; done
 
 if [ "${VNC:-1}" = "1" ]; then
