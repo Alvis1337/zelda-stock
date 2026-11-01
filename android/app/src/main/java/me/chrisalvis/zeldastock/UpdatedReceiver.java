@@ -18,6 +18,11 @@ import android.provider.Settings;
 public class UpdatedReceiver extends BroadcastReceiver {
     private static final int ID = "full-screen-off".hashCode();
 
+    /** Full-screen alerts are allowed again: the reminder has done its job. */
+    public static void clear(Context c) {
+        c.getSystemService(NotificationManager.class).cancel(ID);
+    }
+
     @Override
     public void onReceive(Context c, Intent intent) {
         if (!Intent.ACTION_MY_PACKAGE_REPLACED.equals(intent.getAction())) return;

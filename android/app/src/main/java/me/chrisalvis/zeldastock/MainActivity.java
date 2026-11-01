@@ -367,6 +367,7 @@ public class MainActivity extends Activity {
                 ? "Alerts can open checkout on the lock screen by themselves."
                 : "Allow alerts to open checkout on the lock screen without a tap.");
         fullButton.setVisibility(full ? View.GONE : View.VISIBLE);
+        if (full) UpdatedReceiver.clear(this);
     }
 
     // ---------------------------------------------------------------- Push

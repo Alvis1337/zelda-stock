@@ -32,7 +32,13 @@
     // 2. Read the buy area: from the product title to the button, whichever comes first.
     // Only text a screen reader would read: Best Buy and Walmart draw the price twice,
     // once as "$22.99" and once as aria-hidden "$" "22" "99", which joined reads $2299.
-    var h1 = Array.prototype.find.call(document.querySelectorAll('h1, #productTitle'), function (h) { return h.offsetParent !== null; });
+    // The product title. Amazon's first h1 is a screen-reader heading ("Product summary…",
+    // #pqv-ingress) above a sponsored strip, so its own title ids go first.
+    var visible = function (h) { return h.offsetParent !== null; };
+    var h1 = Array.prototype.find.call(document.querySelectorAll('#productTitle, #title'), visible) ||
+      Array.prototype.find.call(document.querySelectorAll('h1'), function (h) {
+        return visible(h) && h.id !== 'pqv-ingress' && !/^product summary/i.test(h.innerText.trim());
+      });
     var textOf = function (root, range) {
       var parts = [], w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), n;
       while ((n = w.nextNode())) {
@@ -60,7 +66,9 @@
     // the title and the button. Target leaves its box empty until scrolled into view.
     var MAIN_PRICE = {
       'Best Buy': '[data-testid="LARGE_profile"] [data-testid="price-block-customer-price"]',
-      'Target': '[data-test="module-product-detail-price-v2"]'
+      'Target': '[data-test="module-product-detail-price-v2"]',
+      // Not the title-to-button text: it carries promos ("earn a $35 welcome bonus").
+      'Walmart': '[itemprop="price"]'
     };
     var priceText = '';
     var main = MAIN_PRICE[R] && document.querySelector(MAIN_PRICE[R]);
@@ -93,10 +101,11 @@
     if (!area && !priceText) { say('Could not read the price. Not adding automatically; check the page.'); return; }
     // When the product is sold out, the first Add to cart on the page belongs to another
     // product (a carousel). Walmart names the product in the button's label; elsewhere a
-    // long stretch of page between the title and the button gives it away.
+    // long stretch of page between the title and the button gives it away (not on Amazon,
+    // whose button is found by its own id and can't be a carousel's).
     var norm = function (x) { return (x || '').toLowerCase().replace(/[^a-z0-9]+/g, ''); };
     var forName = (btn.getAttribute('aria-label') || '').match(/^\s*add to cart\s*[-–:]\s*(.+)$/i);
-    if ((forName && h1 && norm(forName[1]).slice(0, 24) !== norm(h1.innerText).slice(0, 24)) || spread > 4000) {
+    if ((forName && h1 && norm(forName[1]).slice(0, 24) !== norm(h1.innerText).slice(0, 24)) || (spread > 4000 && R !== 'Amazon')) {
       say('The Add to cart button is for another product; this one looks sold out. Not adding.'); return;
     }
 

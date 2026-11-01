@@ -153,6 +153,10 @@ public class CheckoutActivity extends Activity {
                 if (assisting && url.contains("/cart")) {
                     assisting = false;
                     status.setText(retailer + ": added. Check out from here.");
+                } else if (assisting && url.contains("walmart.com/pac")) {
+                    // Walmart's Add to cart jumps to its "Added to cart" page, ending assist.js mid-wait.
+                    status.setText(retailer + ": added. Opening cart…");
+                    web.loadUrl("https://www.walmart.com/cart");
                 }
                 // Product URLs redirect to longer slugs, so match on the site, not the exact URL.
                 if (assistPending && productUrl != null && sameHost(url, productUrl)) {
