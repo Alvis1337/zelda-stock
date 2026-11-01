@@ -1,0 +1,7 @@
+t+0.3s isKeyguardShowing=true 
+t+4.5s isKeyguardShowing=true Amazon: opening the page to add one to your cart… BACK ADD 
+t+7.7s isKeyguardShowing=true Amazon: opening the page to add one to your cart… BACK ADD 
+t+11.7s isKeyguardShowing=true Amazon: The Add to cart button is for another product; this one looks sold out. Not adding. BACK ADD 
+t+16.1s isKeyguardShowing=true Amazon: The Add to cart button is for another product; this one looks sold out. Not adding. BACK ADD 
+t+20.9s isKeyguardShowing=true Amazon: The Add to cart button is for another product; this one looks sold out. Not adding. BACK ADD 
+t+25.6s isKeyguardShowing=true Amazon: The Add to cart button is for another product; this one looks sold out. Not adding. BACK ADD 
