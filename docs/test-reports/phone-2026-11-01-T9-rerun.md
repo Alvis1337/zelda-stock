@@ -78,3 +78,20 @@ The fix no longer quotes the financing box. The new problem is that **Target onl
 Fix direction for the code session: before reading the price at Target, call `scrollIntoView({block:'center'})` on `[data-test="module-product-detail-price-v2"]` (or scroll near the button), then wait up to ~3 s for it to contain a dollar amount. A scripted scroll is enough; no touch is needed.
 
 **Correction:** an earlier version of this section blamed Target's bot protection. That was wrong. During one manual reload, a signed-in `deferred_enrichment/modules?auth=true` request did return **435** (HUMAN/PerimeterX), and Target then showed a "Press & hold" challenge (T9-14, reference id blanked), which the user cleared. But the empty price box is explained by the lazy render alone: it fills on scroll in runs with no challenge. The 435 is worth knowing about as a separate risk (a challenge mid-alert would block adding), but it isn't the cause here.
+
+## Full T9 on v1.0.45 (commit 52763ef, scroll Target's price box into view), 16:38–16:41
+
+**PASS at both stores.** Phone locked and screen off before each call. Both carts were emptied afterwards, and nothing was ordered.
+
+| Retailer | Over lock screen | Price read | In cart | Landed on |
+|---|---|---|---|---|
+| Best Buy (16:38:53) | t+3.3 s | **$22.99** (correct) | ≤ t+14.3 s | `/cart` (T9-18) |
+| Target (16:40:04) | t+3.4 s | **$14.99** (correct) | ≤ t+9.9 s | `/cart` (T9-22) |
+
+- Best Buy: "opening the page…" → "Adding to cart ($22.99)…" (T9-17) → "added. Check out from here." Cart: 1 item, the Insignia 3-pack. This time it landed on the cart, not the checkout page as in the 15:55 run. Removed → "Your cart is empty." (T9-19).
+- Target: "opening the page…" → "Adding to cart ($14.99)…" (T9-21) → "added. Check out from here." Cart: 1 item, $14.99. Removed → "cart 0 items" (T9-23). No bot challenge this time.
+- Timelines: `T9-bestbuy-v1.0.45-timeline.txt`, `T9-target-v1.0.45-timeline.txt`.
+
+Notes:
+- The v1.0.45 update again reset full-screen alerts to deny (third time today: 1.0.37, 1.0.39, 1.0.45). They were re-allowed in the app before the run.
+- On request, the alarm was kept quiet. `cmd media_session volume --stream 4 --set 1` had no effect on this phone (alarm stayed at 7), so instead a `KEYCODE_SHIFT_LEFT` was sent as soon as CheckoutActivity took focus (≈4–5 s after the call). That ends the alarm through `onUserInteraction`. The ring-until-touched behaviour therefore wasn't observed in this run. Volume settings were not changed.

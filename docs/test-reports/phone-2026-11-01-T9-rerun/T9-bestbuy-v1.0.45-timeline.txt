@@ -1,0 +1,8 @@
+t+0.1s isKeyguardShowing=true 
+t+3.3s isKeyguardShowing=true Best Buy: opening the page to add one to your cart… BACK ADD 
+t+6.2s isKeyguardShowing=true Best Buy: Adding to cart ($22.99)… BACK ADD 
+t+14.3s isKeyguardShowing=true Best Buy: added. Check out from here. BACK ADD 
+t+17.9s isKeyguardShowing=true Best Buy: added. Check out from here. BACK ADD 
+t+21.0s isKeyguardShowing=true Best Buy: added. Check out from here. BACK ADD 
+t+25.0s isKeyguardShowing=true Best Buy: added. Check out from here. BACK ADD 
+t+28.8s isKeyguardShowing=true Best Buy: added. Check out from here. BACK ADD 
