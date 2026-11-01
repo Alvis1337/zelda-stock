@@ -1,6 +1,6 @@
 # Phone test plan: Zelda Stock app against the live server
 
-For a Claude Code session on the Mac with the Android phone plugged in over USB
+Start it with the prompt in [prompt.md](prompt.md). For a Claude Code session on the Mac with the Android phone plugged in over USB
 (`adb`) and `kubectl` access to the home cluster. Run every test below, collect the
 evidence, and write the report described at the end. You test and report; you
 don't fix code. If a test can't run, mark it BLOCKED and say why.
