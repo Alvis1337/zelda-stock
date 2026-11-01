@@ -9,8 +9,6 @@ on:
       radius:
         description: "Radius in miles"
         default: "50"
-  schedule:
-    - cron: "*/30 * * * *"   # every 30 minutes
 
 jobs:
   check:

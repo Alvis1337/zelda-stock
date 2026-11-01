@@ -1,8 +1,9 @@
 # Zelda stock server (k8s) + thin Android client
 
-**Status: server, image and manifests are built (rollout step 1). The Android
-thin-client changes (step 3) are not done yet.** The design below is kept as the
-reference; where the build differs from it, the "Running it" section wins.
+**Status: built and running.** Server on the cluster, API at
+`https://zelda-stock.chrisalvis.me` behind Cloudflare Access, app is a push-only
+client (UnifiedPush instead of the FCM design below: no Firebase project needed).
+The design below is kept as the reference; "Running it" describes what is built.
 
 ## Running it
 
@@ -24,7 +25,20 @@ Differences from the design:
   it; the Service exposes 8080 only. Set `VNC=0` to turn it off.
 - `pwuser` is **uid/gid 1001** in the Playwright noble image, so the pod runs as
   1001 with `fsGroup: 1001`.
-- `PUSH` defaults to `ntfy` until the app has FCM.
+- Push is **UnifiedPush** (`PUSH=up,ntfy`), not FCM. The app registers with a
+  distributor (the ntfy app), sends its endpoint and Web Push keys to
+  `POST /api/register`, and the server sends RFC 8291 encrypted messages
+  (`web-push`). Endpoints live in `/data/subscriptions.json`; a 404/410 from the
+  distributor drops one. The plain ntfy topic stays as a backup channel.
+- The API is public only through Cloudflare Access app **Zelda Stock**
+  (`zelda-stock.chrisalvis.me`): the service token `zelda-stock-app` plus the
+  existing admin WARP/Google policies; anything else gets a 401/login redirect at
+  Cloudflare. The server also verifies the `Cf-Access-Jwt-Assertion` header
+  (`CF_ACCESS_TEAM`, `CF_ACCESS_AUD`). `API_TOKEN` still works for port-forward.
+  The token's client ID / secret are in Secret `zelda-stock/zelda-stock-access`;
+  the app takes them in **Server settings**, nothing is built into the APK.
+- Every job leaves a screenshot and the page text in `/data/shots`
+  (`GET /api/shots`, `GET /api/shots/<job>.png|.txt`).
 - A retailer counts as blocked for a run when **none** of its rows is
   `IN STOCK`, `OUT OF STOCK` or `NONE FOUND`. While a retailer is unreadable its
   in-stock keys are carried over, so in stock → blocked → in stock rings once.
@@ -73,15 +87,38 @@ curl -X POST -H "Authorization: Bearer $TOKEN" localhost:8080/api/resume
 curl -X POST -H "Authorization: Bearer $TOKEN" localhost:8080/api/check
 ```
 
-First real run (from the dev box, residential IP, 2026-11-01): 9 jobs in 77 s.
-Best Buy, Walmart, GameStop online + 3 store lookups, Nintendo and Amazon all
-read `OUT OF STOCK`. **Target read `UNVERIFIED`**: its search page answers
-"We couldn't find a match for your search" plus "Oops! something went wrong"
-even for `zelda switch 2`, so the search API is turning this browser away.
+Phone setup (once):
 
-First run in the cluster (same day): 52 s, same results, except that Target
-found the product but its store API (redsky) answered **HTTP 435**, Target's
-bot block. Check Target in the noVNC view.
+1. Install the ntfy app (it is the UnifiedPush distributor; it can also
+   subscribe to the backup topic: `kubectl -n zelda-stock get secret zelda-stock
+   -o jsonpath='{.data.NTFY_TOPIC}' | base64 -d`).
+2. Update Zelda Stock (in-app updater), open **Server settings**, paste the
+   client ID and secret from
+   `kubectl -n zelda-stock get secret zelda-stock-access -o json | jq '.data|map_values(@base64d)'`,
+   tap **Save and connect**.
+3. Tap **Set up alerts**, then **Test from server** with the phone locked: the
+   alarm should ring and open the page.
+
+Cloudflare tunnel: the tunnel's ingress list is explicit per hostname, so
+`zelda-stock.chrisalvis.me` needs a rule before the `http_status:404` catch-all,
+the same as the other tunnel-gateway hosts:
+service `https://envoy-kakariko-tunnel.envoy-gateway-system.svc.cluster.local:443`,
+origin server name `zelda-stock.chrisalvis.me`.
+
+State of each retailer (2026-11-01, from the screenshots):
+
+- Walmart, GameStop (online + store lookup), Nintendo, Amazon: real reads.
+- Target: real reads online and for stores near all three ZIPs. Two script
+  fixes were needed: the product card lookup returned the image wrapper (empty
+  text, so the online row was dropped) and redsky answers 435 to the shopper's
+  cookie session, so `target.js` now calls it without cookies.
+- Best Buy: the profile's Akamai bot-manager cookies got flagged after several
+  pod restarts in a few minutes; with them every load is
+  `ERR_HTTP2_PROTOCOL_ERROR`, without them the page loads. The server does not
+  clear them on its own. To reset by hand: pause, open the noVNC view, Chrome
+  menu > Settings > Privacy > Site data > bestbuy.com > delete, resume.
+- GameStop answers for the location it detects from the IP (43068), so the three
+  store lookups return the same "no store within 100 miles" answer.
 
 ## Why
 
