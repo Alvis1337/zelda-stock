@@ -106,6 +106,7 @@ export class Browser {
         await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: LOAD_TIMEOUT_MS });
         break;
       } catch (e) {
+        await page.waitForTimeout(1_500); // let the error page finish committing first
         await page.goto('about:blank').catch(() => {});
         if (attempt === 1 && /net::ERR_|interrupted by another navigation/.test(short(e))) {
           await page.waitForTimeout(3_000);

@@ -10,8 +10,15 @@
         var m = a.getAttribute('href').match(/\/A-(\d+)/);
         var title = (a.getAttribute('aria-label') || a.innerText || '').trim();
         if (m && zsIsConsole(title) && !items[m[1]]) {
-          var card = a.closest('[data-test*="product"], li, section') || a.parentElement;
-          var ctext = card ? card.innerText : '';
+          // The card is the largest ancestor that still holds only this product's links
+          // (closest() can stop at the image wrapper, whose text is empty).
+          var card = a;
+          while (card.parentElement && card.parentElement !== document.body &&
+                 !Array.prototype.some.call(card.parentElement.querySelectorAll('a[href*="/A-"]'), function (x) {
+                   var o = x.getAttribute('href').match(/\/A-(\d+)/);
+                   return o && o[1] !== m[1];
+                 })) card = card.parentElement;
+          var ctext = card.innerText || '';
           // Skip Target Plus marketplace listings (sold by another seller).
           var sold = ctext.match(/sold (?:and shipped )?by ([^\n]+)/i);
           if (sold && !/target/i.test(sold[1])) return;
@@ -43,7 +50,8 @@
           '&limit=20&include_only_available_stores=false&requested_quantity=1';
         var purl = 'https://www.target.com/p/-/A-' + t, title = items[t].title;
         try {
-          var r = await fetch(url, { credentials: 'include' });
+          // No cookies: redsky rate-limits per shopper session (HTTP 435) and doesn't need it.
+          var r = await fetch(url, { credentials: 'omit' });
           if (!r.ok) { rows.push(zsRow('Target', title, 'stores near ' + z, 'UNVERIFIED', 'HTTP ' + r.status, purl)); continue; }
           var j = await r.json();
           var f = j && j.data && j.data.fulfillment_fiats;
@@ -63,6 +71,7 @@
         } catch (e) {
           rows.push(zsRow('Target', title, 'stores near ' + z, 'UNVERIFIED', String(e), purl));
         }
+        await zsSleep(1000);
       }
     }
     zsFinish({ rows: rows });
