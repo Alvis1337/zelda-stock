@@ -1,0 +1,4 @@
+t+7.7s isKeyguardShowing=false Best Buy: opening the page to add one to your cart… BACK ADD 
+t+10.5s isKeyguardShowing=false Best Buy: Price shows $1099.99 (over $560). Not adding: likely a reseller. BACK ADD 
+t+16.3s isKeyguardShowing=false Best Buy: Price shows $1099.99 (over $560). Not adding: likely a reseller. BACK ADD 
+t+20.9s isKeyguardShowing=false Best Buy: Price shows $1099.99 (over $560). Not adding: likely a reseller. BACK ADD 

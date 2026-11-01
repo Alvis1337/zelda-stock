@@ -64,3 +64,14 @@ uid 10483 is Zelda Stock. A key press (`KEYCODE_SHIFT_LEFT`) stopped it, and no 
 - Every app update resets `USE_FULL_SCREEN_INTENT` to deny. It was re-allowed by hand after 1.0.37, 1.0.39 and 1.0.45. Until it's re-allowed, an in-stock alert won't open Checkout over the lock screen.
 - Best Buy price guard reads the related-products strip (T10.1 above).
 - After surprise 5's locked repeat, the notification for that store stayed in the shade even though Checkout was showing. That's harmless, but it isn't the "one sound, not two" cancel the code intends.
+
+## v1.0.48 (commit 7dc4879), 17:19–17:23
+
+| Item | Result |
+|---|---|
+| Full-screen reset after update | **Reminder works.** After the 1.0.48 install the app posted "Allow full-screen alerts again: The update turned off full-screen alerts, so a restock can't open checkout on the lock screen. Tap to allow them again." Full-screen alerts were allowed again. Small note: the reminder was still in the shade after the permission was back on. |
+| T10.1 Best Buy TV $1,099.99 | **PASS.** "Best Buy: Price shows $1099.99 (over $560). Not adding: likely a reseller." (t+10.5 s). Cart 0 items. |
+| T9 Best Buy cable $22.99 (locked) | **PASS.** Over the lock screen t+3.6 s, "Adding to cart ($22.99)…" t+6.5 s, added by t+12.9 s. Cart 1 item → removed → "Your cart is empty." |
+| T9 Target cable $14.99 (locked) | **PASS.** "Adding to cart ($14.99)…" by t+3.6 s, added by t+12.4 s. Cart 1 item → removed → "cart 0 items". |
+
+The alarm was hushed with a key press as before. Timelines and empty-cart screenshots are prefixed `v1.0.48-`.
