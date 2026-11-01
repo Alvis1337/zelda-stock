@@ -1,12 +1,17 @@
-# Next phone run: Walmart and Amazon checkout on v1.0.51
+# Next phone run: Amazon checkout (and a Walmart recheck)
 
 For the phone-testing session (phone on USB, `adb`, `kubectl`). Same ground rules as
 [phone-test-plan.md](phone-test-plan.md): never place an order or tap Place order / Buy
 now / Pay / Checkout, remove every test item from the cart, put back anything you change,
 and touch the server only through `deploy/zs-api.sh`. Test and report; don't change code.
 
-What changed since [phone-2026-11-01-other-stores.md](test-reports/phone-2026-11-01-other-stores.md)
-(commit 47b0dd6):
+**Latest:** v1.0.51 passed Walmart; Amazon refused at the seller check because it read the
+whole "Shipped and sold by Amazon.com … Shipper / Seller Amazon.com" block. The next build
+takes the name after "sold by" / "Seller". Rerun section 3 (Amazon) on the version named
+at the end of this file, and section 2 (Walmart) once more as a regression check. Report
+under a new heading for that version.
+
+Earlier changes (commit 47b0dd6):
 
 - Walmart: the price guard reads `[itemprop="price"]`, not the title-to-button text (which
   quoted a "$35 welcome bonus").

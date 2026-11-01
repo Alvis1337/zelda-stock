@@ -129,9 +129,19 @@
     var sm = area.match(/sold\s*(?:&|and)?\s*(?:shipped\s*)?by\s*:?\s*([A-Za-z0-9 .,'&-]{2,40})/i);
     if (!sm && R === 'Amazon') {
       var mi = document.querySelector('#merchantInfoFeature_feature_div .offer-display-feature-text, #sellerProfileTriggerId');
-      if (mi) sm = [null, mi.textContent.trim()];
+      if (mi) {
+        // "Shipped and sold by Amazon.com  Shipped and sold by Amazon.com  Shipper / Seller Amazon.com",
+        // or "Ships from Amazon  Sold by Some Store": the seller is what follows "sold by".
+        var mt = mi.textContent.replace(/\s+/g, ' ').trim();
+        var END = '(?=\\s+(?:shipped|ships|shipper|seller|sold|returns|payment)\\b|$)';
+        var ms = mt.match(new RegExp('sold by\\s*:?\\s*(.+?)' + END, 'i')) ||
+          mt.match(new RegExp('(?:^|\\s)seller\\s*:?\\s*(.+?)' + END, 'i'));
+        sm = [null, ms ? ms[1] : mt];
+      }
     }
-    if (sm && !OWN[R].test(sm[1])) { say('Sold by "' + sm[1].replace(/\s+\d.*$/, '').trim() + '", not ' + R + '. Not adding.'); return; }
+    if (sm && !OWN[R].test(sm[1])) {
+      say('Sold by "' + sm[1].replace(/\s+/g, ' ').replace(/\s+\d.*$/, '').trim().slice(0, 40) + '", not ' + R + '. Not adding.'); return;
+    }
     if (R === 'Amazon' && !sm) { say('Could not confirm Amazon is the seller. Not adding; check the page.'); return; }
 
     // 5. Quantity 1, add, then go to the cart.

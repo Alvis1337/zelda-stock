@@ -192,6 +192,7 @@ public class CheckoutActivity extends Activity {
         retailer = i.getStringExtra(EXTRA_RETAILER);
         productUrl = i.getStringExtra(EXTRA_URL);
         assistPending = i.getBooleanExtra(EXTRA_ASSIST, false);
+        assisting = false; // a new alert replaces whatever the last one was doing
         status.setText(assistPending
                 ? retailer + ": opening the page to add one to your cart…"
                 : (retailer == null ? "" : retailer + ": ") + "sign in or browse. The app keeps you signed in.");
