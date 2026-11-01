@@ -55,10 +55,25 @@
     var PRICE = /\$\s*(\d{1,3}(?:,\d{3})+|\d+)(?:\s*\.\s*(\d{2})|\s+(\d{2}))?(?!\d)(?!\s*\/\s*mo)/gi;
     // Financing lines quote other amounts ("orders over $50", "4 payments of $130.00").
     var FINANCE = /(payments? of|orders? (?:over|of|above)|over|per month|monthly)\s*\$\s*[\d,]+(?:\.\d{2})?/gi;
-    var priceText = area.replace(FINANCE, ' ');
-    // No price between title and button (Target draws it elsewhere): read the store's own
-    // price element. Never just "some block near the button": at Target that's the financing box.
-    // Target leaves its price box empty until it's scrolled into view, so scroll to it and wait.
+    // Where we know the store's main price element, read only that: Best Buy puts lineup
+    // strips (other models), accessories and protection plans, each with a price, between
+    // the title and the button. Target leaves its box empty until scrolled into view.
+    var MAIN_PRICE = {
+      'Best Buy': '[data-testid="LARGE_profile"] [data-testid="price-block-customer-price"]',
+      'Target': '[data-test="module-product-detail-price-v2"]'
+    };
+    var priceText = '';
+    var main = MAIN_PRICE[R] && document.querySelector(MAIN_PRICE[R]);
+    if (main) {
+      if (main.scrollIntoView) main.scrollIntoView({ block: 'center' });
+      for (var mw = 0; mw < 10; mw++) {
+        if (/\$\s*\d/.test(textOf(main))) { priceText = textOf(main).replace(FINANCE, ' '); break; }
+        await zsSleep(400);
+      }
+    }
+    if (!priceText) priceText = area.replace(FINANCE, ' ');
+    // No price between title and button either: read the store's own price element. Never
+    // just "some block near the button": at Target that's the financing box.
     if (!PRICE.test(priceText)) {
       priceText = '';
       var PRICE_EL = '[data-test="module-product-detail-price-v2"], [data-test="product-price"], ' +

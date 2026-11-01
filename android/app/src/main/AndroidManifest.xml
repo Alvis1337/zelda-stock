@@ -30,6 +30,15 @@
             android:turnScreenOn="true"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- After an update: remind to re-allow full-screen alerts. -->
+        <receiver
+            android:name=".UpdatedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Alerts from the home server, delivered by a UnifiedPush distributor (the ntfy app). -->
         <service
             android:name=".PushReceiver"
