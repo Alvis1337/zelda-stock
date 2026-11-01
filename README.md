@@ -11,3 +11,9 @@ ambiguous responses are reported as UNVERIFIED.
   Results appear in the run summary.
 - Best Buy needs a free API key from developer.bestbuy.com, stored as the
   `BESTBUY_API_KEY` repo secret.
+
+## Moving the checks off the phone
+
+The Android app's background watcher is heavy on battery. The plan for running
+the checks on a home k8s cluster and turning the app into a push-notification
+client is in [server/README.md](server/README.md).
