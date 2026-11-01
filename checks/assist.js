@@ -53,15 +53,22 @@
     } catch (e) { area = ''; }
     var spread = area.length;
     var PRICE = /\$\s*(\d{1,3}(?:,\d{3})+|\d+)(?:\s*\.\s*(\d{2})|\s+(\d{2}))?(?!\d)(?!\s*\/\s*mo)/gi;
-    // No price between title and button (layouts differ): use the closest block around the button that has one.
-    if (!PRICE.test(area)) {
-      for (var el = btn.parentElement, up = 0; el && up < 12; el = el.parentElement, up++) {
-        var t = textOf(el);
-        if (/\$\s*\d/.test(t)) { area = t; break; }
-      }
+    // Financing lines quote other amounts ("orders over $50", "4 payments of $130.00").
+    var FINANCE = /(payments? of|orders? (?:over|of|above)|over|per month|monthly)\s*\$\s*[\d,]+(?:\.\d{2})?/gi;
+    var priceText = area.replace(FINANCE, ' ');
+    // No price between title and button (Target draws it elsewhere): read the store's own
+    // price element. Never just "some block near the button": at Target that's the financing box.
+    if (!PRICE.test(priceText)) {
+      priceText = '';
+      var pel = Array.prototype.find.call(document.querySelectorAll(
+        '[data-test="product-price"], [data-testid="price-wrap"], [itemprop="price"], .priceView-hero-price, ' +
+        '[data-testid="customer-price"], #corePrice_feature_div, #corePriceDisplay_desktop_feature_div'), function (e) {
+        return e.offsetParent !== null && /\$\s*\d/.test(textOf(e));
+      });
+      if (pel) priceText = textOf(pel).replace(FINANCE, ' ');
     }
     PRICE.lastIndex = 0;
-    if (!area) { say('Could not read the price. Not adding automatically; check the page.'); return; }
+    if (!area && !priceText) { say('Could not read the price. Not adding automatically; check the page.'); return; }
     // When the product is sold out, the first Add to cart on the page belongs to another
     // product (a carousel). Walmart names the product in the button's label; elsewhere a
     // long stretch of page between the title and the button gives it away.
@@ -71,9 +78,9 @@
       say('The Add to cart button is for another product; this one looks sold out. Not adding.'); return;
     }
 
-    // 3. Price guard: every dollar amount in the buy area (not monthly payments).
+    // 3. Price guard: every dollar amount in the price text (not financing lines).
     var prices = [];
-    area.replace(PRICE, function (m, d, c1, c2) {
+    priceText.replace(PRICE, function (m, d, c1, c2) {
       prices.push(parseFloat(d.replace(/,/g, '') + '.' + (c1 || c2 || '00')));
       return m;
     });
