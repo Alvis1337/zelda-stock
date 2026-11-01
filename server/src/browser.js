@@ -75,10 +75,20 @@ export class Browser {
       return blank('ERROR', 'browser: ' + short(e));
     }
 
-    try {
-      await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: LOAD_TIMEOUT_MS });
-    } catch (e) {
-      return blank('UNVERIFIED', 'page did not load: ' + short(e));
+    // A failed load leaves its error page still navigating, which would cut off the
+    // next load too. Reset to about:blank after a failure, and retry network errors once.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: LOAD_TIMEOUT_MS });
+        break;
+      } catch (e) {
+        await page.goto('about:blank').catch(() => {});
+        if (attempt === 1 && /net::ERR_|interrupted by another navigation/.test(short(e))) {
+          await page.waitForTimeout(3_000);
+          continue;
+        }
+        return blank('UNVERIFIED', 'page did not load: ' + short(e));
+      }
     }
     // Like onPageFinished, but don't give up on pages whose trackers keep "load" from firing.
     await page.waitForLoadState('load', { timeout: 20_000 }).catch(() => {});
