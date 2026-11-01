@@ -8,10 +8,13 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowManager;
+import android.webkit.ConsoleMessage;
 import android.webkit.CookieManager;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -117,7 +120,18 @@ public class CheckoutActivity extends Activity {
         bar.addView(buttons);
         root.addView(bar);
 
+        // Your own phone only: lets chrome://inspect (adb) see these pages, for sites that misbehave.
+        WebView.setWebContentsDebuggingEnabled(true);
         web = new WebView(this);
+        // Page errors go to logcat (adb logcat -s ZeldaWeb), e.g. a sign-in button that silently fails.
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onConsoleMessage(ConsoleMessage m) {
+                if (m.messageLevel() == ConsoleMessage.MessageLevel.ERROR || m.messageLevel() == ConsoleMessage.MessageLevel.WARNING) {
+                    Log.w("ZeldaWeb", m.messageLevel() + " " + m.message() + " @ " + m.sourceId() + ":" + m.lineNumber());
+                }
+                return false;
+            }
+        });
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -127,6 +141,10 @@ public class CheckoutActivity extends Activity {
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
         web.setWebViewClient(new WebViewClient() {
+            @Override public void onReceivedHttpError(WebView v, android.webkit.WebResourceRequest req, android.webkit.WebResourceResponse res) {
+                Log.w("ZeldaWeb", "HTTP " + res.getStatusCode() + " " + req.getMethod() + " " + req.getUrl());
+            }
+
             @Override public void onPageFinished(WebView v, String url) {
                 CookieManager.getInstance().flush();
                 // assist.js's last word is lost when it navigates to the cart; say it here.
