@@ -97,6 +97,7 @@ public class CheckoutActivity extends Activity {
         back.setOnClickListener(v -> { if (web.canGoBack()) web.goBack(); else finish(); });
         Button add = new Button(this); add.setText("Add");
         add.setOnClickListener(v -> {
+            if (assisting) return; // already adding: a second run would click Add to cart twice
             String u = web.getUrl();
             if (productUrl != null && (u == null || !sameHost(u, productUrl) || u.contains("/cart"))) {
                 assistPending = true;
@@ -313,7 +314,13 @@ public class CheckoutActivity extends Activity {
             if (stopped) assisting = false;
             if (added || stopped) return;
             if (System.currentTimeMillis() < until) web.postDelayed(() -> pollAssistStatus(until), 400);
-            else assisting = false;
+            else if (assisting) {
+                // The page navigated or reloaded under the script (a new page reads as "").
+                assisting = false;
+                status.setText(retailer + (status.getText().toString().contains("Adding to cart")
+                        ? ": Add to cart was tapped. Open the cart to check it's there."
+                        : ": assist didn't finish. Tap Add to try again."));
+            }
         });
     }
 

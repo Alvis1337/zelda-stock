@@ -152,7 +152,10 @@
     say('Adding to cart ($' + top.toFixed(2) + ')…');
     btn.click();
     await zsSleep(3500);
-    if (zsBlocked()) { say('Bot check or queue after Add to cart: finish it, then open the cart.'); return; }
+    // Best Buy's drop queue greys the button to "Please Wait..." for minutes; leaving the page
+    // for the cart would give up the place in line.
+    var queued = btn.isConnected && /please wait|in queue|in line/i.test(btn.innerText || btn.value || '');
+    if (zsBlocked() || queued) { say('Bot check or queue after Add to cart: stay on this page, tap Add to cart yourself when it lets you, then open the cart.'); return; }
     say('Added. Opening cart: check out from here.');
     location.href = CART[R];
   } catch (e) {
