@@ -14,7 +14,7 @@ export function message(ev, at) {
       return {
         type: ev.type,
         title: `${ev.type === 'test' ? 'TEST: ' : ''}In stock at ${r.retailer}: ${r.where}`,
-        body: `${r.product}\n${r.detail}`,
+        body: `${r.product}\n${r.detail}` + (ev.also && ev.also.length ? `\nAlso in stock: ${ev.also.join('; ')}` : ''),
         url: r.url,
         data: { retailer: r.retailer, product: r.product, where: r.where, detail: r.detail,
                 url: r.url, key: ev.key, checkedAt: at },

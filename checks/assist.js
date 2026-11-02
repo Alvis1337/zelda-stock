@@ -13,7 +13,7 @@
     'Amazon': 'https://www.amazon.com/gp/cart/view.html',
     'Nintendo': 'https://www.nintendo.com/us/cart/'
   };
-  var OWN = { 'Best Buy': /best\s*buy/i, 'Target': /target/i, 'Walmart': /walmart/i, 'Amazon': /^\s*amazon(\.com)?\b(?!\s*(resale|warehouse))/i, 'Nintendo': /nintendo/i };
+  var OWN = { 'Best Buy': /best\s*buy/i, 'Target': /target/i, 'Walmart': /walmart/i, 'Amazon': /^\s*amazon(\.com)?\b(?!.*(resale|warehouse))/i, 'Nintendo': /nintendo/i };
   try {
     if (!CART[R]) { say(R + ': in-store only. Use the page to reserve or check stores.'); return; }
     if (zsBlocked()) { say('Bot check on the page: solve it, then tap Add to cart.'); return; }
@@ -154,7 +154,8 @@
     await zsSleep(3500);
     // Best Buy's drop queue greys the button to "Please Wait..." for minutes; leaving the page
     // for the cart would give up the place in line.
-    var queued = btn.isConnected && /please wait|in queue|in line/i.test(btn.innerText || btn.value || '');
+    // The button may be re-rendered, so look for any such button, not just the one clicked.
+    var queued = !!zsFindButton(/please wait|in queue|in line/i);
     if (zsBlocked() || queued) { say('Bot check or queue after Add to cart: stay on this page, tap Add to cart yourself when it lets you, then open the cart.'); return; }
     say('Added. Opening cart: check out from here.');
     location.href = CART[R];

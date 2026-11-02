@@ -49,6 +49,8 @@ public class CheckoutActivity extends Activity {
     private static final long ALARM_MS = 60_000;
     /** Highest price assist will ever add to the cart (MSRP is $519.99). */
     public static final int MAX_PRICE = 560;
+    /** After assist adds one at a store, later alerts for that store don't add another for this long. */
+    private static final long ADDED_HOLD_MS = 20 * 60_000;
 
     private WebView web;
     private TextView status;
@@ -57,6 +59,7 @@ public class CheckoutActivity extends Activity {
     private android.media.Ringtone alarm;
     private final Runnable alarmTimeout = this::stopAlarm;
     private boolean assisting;
+    private int assistGen; // bumped per assist run and per new page, so a stale poll stops
 
     public static Intent intent(Context c, String url, String retailer, boolean assist) {
         return new Intent(c, CheckoutActivity.class)
@@ -154,9 +157,10 @@ public class CheckoutActivity extends Activity {
                 // assist.js's last word is lost when it navigates to the cart; say it here.
                 if (assisting && url.contains("/cart")) {
                     assisting = false;
-                    status.setText(retailer + ": added. Check out from here.");
+                    status.setText(retailer + ": cart open. Check the console is in it, then check out.");
                 } else if (assisting && url.contains("walmart.com/pac")) {
                     // Walmart's Add to cart jumps to its "Added to cart" page, ending assist.js mid-wait.
+                    markAdded();
                     status.setText(retailer + ": added. Opening cart…");
                     web.loadUrl("https://www.walmart.com/cart");
                 }
@@ -186,8 +190,15 @@ public class CheckoutActivity extends Activity {
     @Override
     protected void onNewIntent(Intent i) {
         super.onNewIntent(i);
+        // Mid-add, a second store's alert would pull the page away; its notification stays
+        // in the shade, so tap it once this one reaches the cart.
+        if (assisting && i.getBooleanExtra(EXTRA_ASSIST, false)) return;
         setIntent(i);
         load(i);
+    }
+
+    private void markAdded() {
+        Results.prefs(this).edit().putLong("assist_added|" + retailer, System.currentTimeMillis()).apply();
     }
 
     private void load(Intent i) {
@@ -195,11 +206,18 @@ public class CheckoutActivity extends Activity {
         productUrl = i.getStringExtra(EXTRA_URL);
         assistPending = i.getBooleanExtra(EXTRA_ASSIST, false);
         assisting = false; // a new alert replaces whatever the last one was doing
-        status.setText(assistPending
+        assistGen++;
+        long since = System.currentTimeMillis() - Results.prefs(this).getLong("assist_added|" + retailer, 0);
+        boolean already = assistPending && since < ADDED_HOLD_MS;
+        if (already) assistPending = false; // a second alert (another store, a later run) isn't a second console
+        status.setText(already
+                ? retailer + ": one was added to your cart " + Math.max(1, since / 60_000) + " min ago, so not adding another. Check your cart."
+                : assistPending
                 ? retailer + ": opening the page to add one to your cart…"
                 : (retailer == null ? "" : retailer + ": ") + "sign in or browse. The app keeps you signed in.");
+        boolean ring = assistPending || already;
         if (productUrl != null) web.loadUrl(productUrl);
-        if (assistPending) ringOverLockScreen(i.getIntExtra(EXTRA_NOTIF_ID, 0));
+        if (ring) ringOverLockScreen(i.getIntExtra(EXTRA_NOTIF_ID, 0));
     }
 
     /**
@@ -248,13 +266,16 @@ public class CheckoutActivity extends Activity {
     }
 
     private void runAssist() {
-        if (retailer == null) return;
+        // Add tapped while the alert's page loads also leaves onPageFinished's run queued: one run only.
+        if (retailer == null || assisting) return;
+        assistPending = false;
+        int gen = ++assistGen;
         status.setText(retailer + ": checking price and seller…");
         String params = "window.__zsaStatus = ''; var ZSA_PARAMS = {retailer: " + org.json.JSONObject.quote(retailer)
                 + ", maxPrice: " + MAX_PRICE + "};\n";
         web.evaluateJavascript(params + asset("common.js") + asset("assist.js"), null);
         assisting = true;
-        pollAssistStatus(System.currentTimeMillis() + 45_000);
+        pollAssistStatus(gen, System.currentTimeMillis() + 45_000);
     }
 
     /**
@@ -303,8 +324,9 @@ public class CheckoutActivity extends Activity {
     }
 
     /** assist.js reports progress in window.__zsaStatus; read it until it has finished. */
-    private void pollAssistStatus(long until) {
+    private void pollAssistStatus(int gen, long until) {
         web.evaluateJavascript("window.__zsaStatus || ''", v -> {
+            if (gen != assistGen) return; // a newer run or page took over
             String t = "";
             try { t = String.valueOf(new org.json.JSONTokener(v).nextValue()); } catch (Exception ignored) { }
             if (!t.isEmpty()) status.setText(retailer + ": " + t);
@@ -312,8 +334,9 @@ public class CheckoutActivity extends Activity {
             boolean stopped = t.contains("Not adding") || t.contains("not adding") || t.startsWith("No active")
                     || t.startsWith("Bot check") || t.startsWith("Assist stopped") || t.contains("in-store only");
             if (stopped) assisting = false;
+            if (added) markAdded();
             if (added || stopped) return;
-            if (System.currentTimeMillis() < until) web.postDelayed(() -> pollAssistStatus(until), 400);
+            if (System.currentTimeMillis() < until) web.postDelayed(() -> pollAssistStatus(gen, until), 400);
             else if (assisting) {
                 // The page navigated or reloaded under the script (a new page reads as "").
                 assisting = false;

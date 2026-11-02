@@ -76,18 +76,21 @@
     });
     if (go) go.click();
     if (input.form) { try { input.form.requestSubmit ? input.form.requestSubmit() : input.form.submit(); } catch (e) { } }
+    var fresh = false;
     for (var k = 0; k < 20; k++) {
       await zsSleep(750);
       var t2 = panelText();
-      if (t2 !== before && answered(t2)) { text = t2; break; }
+      if (t2 !== before && answered(t2)) { text = t2; fresh = true; break; }
     }
+    // No new answer: what's on screen is still the answer for the location GameStop guessed.
+    if (!fresh) return done('UNVERIFIED', 'stores near ' + z, 'GameStop did not answer the search for ' + z);
     var none = text.replace(/\n/g, ' ').match(/no store within (\d+) miles of (\d{5})[^.]*inventory/i);
-    if (none) {
-      return done('OUT OF STOCK', 'stores within ' + none[1] + ' mi of ' + none[2], 'GameStop: no store currently has inventory' + (none[2] !== z ? ' (GameStop used ' + none[2] + ', near you)' : ''));
-    }
+    if (none && none[2] !== z) return done('UNVERIFIED', 'stores near ' + z, 'GameStop answered for ' + none[2] + ', not ' + z);
+    if (none) return done('OUT OF STOCK', 'stores within ' + none[1] + ' mi of ' + z, 'GameStop: no store currently has inventory');
     var lines = text.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
     var hits = [];
     if (dialog !== document.body) lines.forEach(function (l, idx) {
+      if (/\b(not|no|out of)\s+(in\s+)?stock\b|unavailable/i.test(l)) return;
       if (/^(in stock|limited stock|available)\b/i.test(l) || /\b(in stock|limited stock)\b/i.test(l)) {
         var name = lines.slice(Math.max(0, idx - 3), idx).join(' · ');
         hits.push(name + ' → ' + l);

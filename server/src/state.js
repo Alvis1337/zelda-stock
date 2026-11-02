@@ -4,13 +4,16 @@ import path from 'node:path';
 
 // Statuses that mean the retailer's own data was read. Anything else is a blocked or broken read.
 const DEFINITIVE = new Set(['IN STOCK', 'OUT OF STOCK', 'NONE FOUND']);
+// A key that rang this recently doesn't ring again: a part of a read that fails once (one
+// ZIP's store lookup, Best Buy's pickup tile) drops its key, and the next read brings it back.
+export const REALERT_MS = 20 * 60_000;
 
 export const key = (r) => `${r.retailer}|${r.product}|${r.where}`; // same as Results.key
 
 export function emptyState() {
   return {
     lastRun: null, rows: [], inStockKeys: [], unverifiedStreak: {},
-    slow: {}, heartbeatDate: null, runsSinceHeartbeat: 0,
+    slow: {}, heartbeatDate: null, runsSinceHeartbeat: 0, alerted: {},
   };
 }
 
@@ -48,15 +51,30 @@ export function applyRun(prev, rows, { ran, at, blockedAfter }) {
     if (!mine.some((r) => DEFINITIVE.has(r.status))) unreadable.add(retailer);
   }
 
-  // In stock now and not on the previous run (same as Results.saveAndNotify).
+  // In stock now and not on the previous run (nor alerted in the last REALERT_MS).
+  // One alert per retailer per run, online first: each alert opens checkout and adds
+  // one to the cart, so Target online + three stores must not mean four carts.
   const before = new Set(prev.inStockKeys);
+  const alerted = Object.fromEntries(Object.entries(prev.alerted || {})
+    .filter(([, t]) => Date.parse(at) - Date.parse(t) < REALERT_MS));
   const now = new Set();
+  const fresh = new Map();
   for (const r of rows) {
     if (r.status !== 'IN STOCK') continue;
     const k = key(r);
-    if (!before.has(k) && !now.has(k)) events.push({ type: 'in_stock', row: r, key: k });
+    if (!before.has(k) && !now.has(k) && !alerted[k]) {
+      const list = fresh.get(r.retailer) || [];
+      fresh.set(r.retailer, list);
+      if (r.where === 'online') list.unshift({ r, k }); else list.push({ r, k });
+    }
     now.add(k);
   }
+  for (const list of fresh.values()) {
+    events.push({ type: 'in_stock', row: list[0].r, key: list[0].k,
+      keys: list.map((x) => x.k), also: list.slice(1).map((x) => x.r.where) });
+    for (const x of list) alerted[x.k] = at;
+  }
+  state.alerted = alerted;
   // A retailer that couldn't be read this run keeps its in-stock rows, so a blip
   // between two in-stock reads doesn't ring the alarm twice. That includes a slow
   // retailer sitting this run out whose last (reused) read was unreadable.

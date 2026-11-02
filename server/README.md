@@ -46,6 +46,13 @@ Differences from the design:
 - A new `IN STOCK` read is never alerted on its own: the server waits 5 s and
   runs that job again, and only the second read's rows count. A false read costs
   one extra page visit; a real restock alerts about 30 s later.
+- One alert per retailer per run (online first, the other places listed in it),
+  since each alert opens checkout and adds one to the cart. A key that alerted in
+  the last 20 minutes doesn't alert again, so one failed part of a read (a ZIP's
+  store lookup, the pickup tile) doesn't ring twice. An alert that no channel
+  delivered is forgotten, so the next run tries again.
+- The app adds at most one per store per 20 minutes; a later alert for that store
+  rings and opens the page but doesn't add another.
 - `/healthz` fails if a run has been going for over 20 minutes, so k8s restarts
   a wedged browser. The pod also exits if Chromium dies.
 

@@ -83,7 +83,15 @@ async function runOnce(reason) {
     const count = (s) => rows.filter((r) => r.status === s).length;
     log(`run done in ${((finished - at) / 1000).toFixed(0)}s: ${count('IN STOCK')} in stock, ${count('OUT OF STOCK')} out, ` +
       `${count('UNVERIFIED') + count('ERROR')} unverified/error; ${events.length} push event(s)`);
-    for (const ev of events) await notify(ev, finished.toISOString());
+    for (const ev of events) {
+      const sent = await notify(ev, finished.toISOString());
+      // Nothing delivered it: forget the keys, so the next run that sees it tries again.
+      if (ev.type === 'in_stock' && !Object.values(sent).includes('ok')) {
+        state.inStockKeys = state.inStockKeys.filter((k) => !ev.keys.includes(k));
+        for (const k of ev.keys) delete state.alerted[k];
+        saveState(config.dataDir, state);
+      }
+    }
   } catch (e) {
     log('run failed:', e);
   } finally {

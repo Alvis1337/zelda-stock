@@ -24,7 +24,7 @@
     }
     var price = txt('#corePrice_feature_div .a-offscreen') || txt('#apex_desktop .a-offscreen') || txt('.a-price .a-offscreen');
     // Amazon Resale (formerly Warehouse) is Amazon selling used and returned units.
-    var byAmazon = /^amazon(\.com)?\b(?!\s*(resale|warehouse))/i.test(seller);
+    var byAmazon = /^amazon(\.com)?\b/i.test(seller) && !/resale|warehouse/i.test(seller);
     var row;
     if (!cart) row = zsRow('Amazon', NAME, 'online', 'OUT OF STOCK', (avail || 'no Add to Cart button'), url);
     else if (byAmazon && !/unavailable|out of stock/i.test(avail)) row = zsRow('Amazon', NAME, 'online', 'IN STOCK', 'sold by Amazon' + (price ? ', ' + price : ''), url);

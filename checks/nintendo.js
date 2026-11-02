@@ -10,7 +10,11 @@
       var addBtn = Array.prototype.find.call(document.querySelectorAll('button'), function (b) {
         return /add to cart/i.test(b.innerText || '');
       });
-      if (addBtn && !addBtn.disabled && addBtn.getAttribute('aria-disabled') !== 'true') {
+      // The product's own stock line sits at the top; an Add to cart lower down can be a
+      // recommendation's, so sold-out wording up there wins over any live button.
+      if (/out of stock|sold out|currently unavailable|no longer available/.test(body.slice(0, 2500))) {
+        verdict = 'OUT OF STOCK'; detail = 'page says out of stock / sold out';
+      } else if (addBtn && !addBtn.disabled && addBtn.getAttribute('aria-disabled') !== 'true') {
         verdict = 'IN STOCK'; detail = 'Add to cart is live on the Nintendo Store';
       } else if (/out of stock|sold out|currently unavailable|no longer available/.test(body)) {
         verdict = 'OUT OF STOCK'; detail = 'page says out of stock / sold out';

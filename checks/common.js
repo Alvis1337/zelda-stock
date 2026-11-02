@@ -56,7 +56,8 @@ window.zsIsZeldaS2 = function (s) {
 window.zsIsConsole = function (s) {
   s = (s || '').toLowerCase();
   if (!zsIsZeldaS2(s)) return false;
-  if (/controller|joy-?con|case|screen protector|amiibo|upgrade pack|restored|refurb|pre-?owned|used|renewed|digital|download|game card/.test(s)) return false;
+  // Accessories in the same Zelda 40th line: cards, docks, cameras, cases and the like.
+  if (/controller|joy-?con|case|screen protector|amiibo|upgrade pack|restored|refurb|pre-?owned|used|renewed|digital|download|card|dock set|camera|charg|stand\b|grip|bag|pouch|skin|sleeve|cable|adapter|headset|memory|figure|plush|poster|shirt|keychain/.test(s)) return false;
   if (!/40th anniversary|ocarina of time/.test(s)) return false;
   return /console|system|bundle|hardware|anniversary edition/.test(s);
 };
