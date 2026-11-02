@@ -10,9 +10,13 @@
       var addBtn = Array.prototype.find.call(document.querySelectorAll('button'), function (b) {
         return /add to cart/i.test(b.innerText || '');
       });
-      // The product's own stock line sits at the top; an Add to cart lower down can be a
-      // recommendation's, so sold-out wording up there wins over any live button.
-      if (/out of stock|sold out|currently unavailable|no longer available/.test(body.slice(0, 2500))) {
+      // The product's own stock line sits right under its title ("Sold out", "This item is
+      // currently unavailable"); an Add to cart lower down can be a recommendation's, so
+      // that wording wins over any live button.
+      var h1 = document.querySelector('h1'), ht = h1 ? (h1.innerText || '').trim().toLowerCase() : '';
+      var at = ht ? body.indexOf(ht) : -1;
+      var own = at >= 0 ? body.slice(at, at + 600) : body.slice(0, 2500);
+      if (/out of stock|sold out|currently unavailable|no longer available/.test(own)) {
         verdict = 'OUT OF STOCK'; detail = 'page says out of stock / sold out';
       } else if (addBtn && !addBtn.disabled && addBtn.getAttribute('aria-disabled') !== 'true') {
         verdict = 'IN STOCK'; detail = 'Add to cart is live on the Nintendo Store';

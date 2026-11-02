@@ -157,6 +157,7 @@ public class CheckoutActivity extends Activity {
                 // assist.js's last word is lost when it navigates to the cart; say it here.
                 if (assisting && url.contains("/cart")) {
                     assisting = false;
+                    markAdded(); // also when the store's own add jumped here before assist said "Added" (Amazon)
                     status.setText(retailer + ": cart open. Check the console is in it, then check out.");
                 } else if (assisting && url.contains("walmart.com/pac")) {
                     // Walmart's Add to cart jumps to its "Added to cart" page, ending assist.js mid-wait.
@@ -167,7 +168,8 @@ public class CheckoutActivity extends Activity {
                 // Product URLs redirect to longer slugs, so match on the site, not the exact URL.
                 if (assistPending && productUrl != null && sameHost(url, productUrl)) {
                     assistPending = false;
-                    web.postDelayed(CheckoutActivity.this::runAssist, 1500);
+                    int g = assistGen; // a new alert within the 1.5 s gets its own run, not this one
+                    web.postDelayed(() -> { if (g == assistGen) runAssist(); }, 1500);
                 }
             }
         });
@@ -197,8 +199,9 @@ public class CheckoutActivity extends Activity {
         load(i);
     }
 
+    /** Keyed by product page, so a test alert's cheap item doesn't hold back the console. */
     private void markAdded() {
-        Results.prefs(this).edit().putLong("assist_added|" + retailer, System.currentTimeMillis()).apply();
+        if (productUrl != null) Results.prefs(this).edit().putLong("assist_added|" + productUrl, System.currentTimeMillis()).apply();
     }
 
     private void load(Intent i) {
@@ -207,7 +210,7 @@ public class CheckoutActivity extends Activity {
         assistPending = i.getBooleanExtra(EXTRA_ASSIST, false);
         assisting = false; // a new alert replaces whatever the last one was doing
         assistGen++;
-        long since = System.currentTimeMillis() - Results.prefs(this).getLong("assist_added|" + retailer, 0);
+        long since = System.currentTimeMillis() - Results.prefs(this).getLong("assist_added|" + productUrl, 0);
         boolean already = assistPending && since < ADDED_HOLD_MS;
         if (already) assistPending = false; // a second alert (another store, a later run) isn't a second console
         status.setText(already
@@ -340,7 +343,9 @@ public class CheckoutActivity extends Activity {
             else if (assisting) {
                 // The page navigated or reloaded under the script (a new page reads as "").
                 assisting = false;
-                status.setText(retailer + (status.getText().toString().contains("Adding to cart")
+                boolean clicked = status.getText().toString().contains("Adding to cart");
+                if (clicked) markAdded();
+                status.setText(retailer + (clicked
                         ? ": Add to cart was tapped. Open the cart to check it's there."
                         : ": assist didn't finish. Tap Add to try again."));
             }

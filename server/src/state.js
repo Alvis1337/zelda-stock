@@ -4,9 +4,9 @@ import path from 'node:path';
 
 // Statuses that mean the retailer's own data was read. Anything else is a blocked or broken read.
 const DEFINITIVE = new Set(['IN STOCK', 'OUT OF STOCK', 'NONE FOUND']);
-// A key that rang this recently doesn't ring again: a part of a read that fails once (one
+// A key that was in stock this recently doesn't ring again: a part of a read that fails once (one
 // ZIP's store lookup, Best Buy's pickup tile) drops its key, and the next read brings it back.
-export const REALERT_MS = 20 * 60_000;
+export const REALERT_MS = 30 * 60_000; // more than two slow-retailer intervals (10-14 min)
 
 export const key = (r) => `${r.retailer}|${r.product}|${r.where}`; // same as Results.key
 
@@ -51,7 +51,7 @@ export function applyRun(prev, rows, { ran, at, blockedAfter }) {
     if (!mine.some((r) => DEFINITIVE.has(r.status))) unreadable.add(retailer);
   }
 
-  // In stock now and not on the previous run (nor alerted in the last REALERT_MS).
+  // In stock now and not on the previous run (nor read in stock in the last REALERT_MS).
   // One alert per retailer per run, online first: each alert opens checkout and adds
   // one to the cart, so Target online + three stores must not mean four carts.
   const before = new Set(prev.inStockKeys);
@@ -101,6 +101,9 @@ export function applyRun(prev, rows, { ran, at, blockedAfter }) {
   state.rows = rows;
   state.lastRun = at;
   state.inStockKeys = [...now];
+  // The window runs from the last in-stock read, not the alert: a key that stays in stock
+  // for an hour and then misses one read must not ring again.
+  for (const k of now) state.alerted[k] = at;
   state.runsSinceHeartbeat = (prev.runsSinceHeartbeat || 0) + 1;
   return { state, events };
 }
