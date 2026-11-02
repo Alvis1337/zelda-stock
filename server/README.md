@@ -119,7 +119,10 @@ State of each retailer (2026-11-01, from the screenshots):
 - Target: real reads online and for stores near all three ZIPs. Two script
   fixes were needed: the product card lookup returned the image wrapper (empty
   text, so the online row was dropped) and redsky answers 435 to the shopper's
-  cookie session, so `target.js` now calls it without cookies.
+  cookie session, so `target.js` now calls it without cookies. Without cookies
+  it still answers 435 now and then (rate limit), so each call retries twice,
+  3 s and 6 s later. A store near more than one ZIP is one row, keyed by its
+  name; its distance goes in the detail.
 - Best Buy: the profile's Akamai bot-manager cookies got flagged after several
   pod restarts in a few minutes; with them every load is
   `ERR_HTTP2_PROTOCOL_ERROR`, without them the page loads. The server does not

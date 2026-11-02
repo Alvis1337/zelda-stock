@@ -59,8 +59,11 @@
         else if (it.texts.length) rows.push(zsRow('Target', it.title, 'online', 'UNVERIFIED', 'card shows no stock wording', url));
       }
     });
-    // 3. Store stock near each ZIP, using the same API target.com calls.
+    // 3. Store stock near each ZIP, using the same API target.com calls. The ZIPs overlap, so
+    // a store near two of them is reported once, under its name (not its distance from one ZIP),
+    // so it's one alert with a key that doesn't change with the ZIP that saw it.
     for (var t of tcins) {
+      var seen = {};
       for (var z of P.zips) {
         var url = 'https://redsky.target.com/redsky_aggregations/v1/web/fiats_v1?key=' + KEY +
           '&tcin=' + t + '&nearby=' + z + '&radius=' + P.radius +
@@ -68,7 +71,12 @@
         var purl = 'https://www.target.com/p/-/A-' + t, title = items[t].title;
         try {
           // No cookies: redsky rate-limits per shopper session (HTTP 435) and doesn't need it.
+          // HTTP 435 is redsky's rate limit; it passes after a few seconds.
           var r = await fetch(url, { credentials: 'omit' });
+          for (var tries = 1; r.status === 435 && tries <= 2; tries++) {
+            await zsSleep(3000 * tries);
+            r = await fetch(url, { credentials: 'omit' });
+          }
           if (!r.ok) { rows.push(zsRow('Target', title, 'stores near ' + z, 'UNVERIFIED', 'HTTP ' + r.status, purl)); continue; }
           var j = await r.json();
           var f = j && j.data && j.data.fulfillment_fiats;
@@ -80,8 +88,10 @@
             var s = l.store || {}, a = s.mailing_address || {};
             if (q > 0) {
               hit = true;
-              rows.push(zsRow('Target', title, (s.location_name || l.location_id) + ' (' + l.distance + ' mi)', 'IN STOCK',
-                'qty ' + Math.floor(q) + (a.address_line1 ? ', ' + a.address_line1 + ', ' + (a.city || '') : ''), purl));
+              if (seen[l.location_id]) return;
+              seen[l.location_id] = true;
+              rows.push(zsRow('Target', title, s.location_name || ('store ' + l.location_id), 'IN STOCK',
+                'qty ' + Math.floor(q) + ', ' + l.distance + ' mi from ' + z + (a.address_line1 ? ', ' + a.address_line1 + ', ' + (a.city || '') : ''), purl));
             }
           });
           if (!hit) rows.push(zsRow('Target', title, locs.length + (locs.length === 1 ? ' store' : ' stores') + ' within ' + P.radius + ' mi of ' + z, 'OUT OF STOCK', '0 available at every store', purl));

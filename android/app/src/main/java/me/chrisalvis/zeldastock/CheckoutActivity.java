@@ -55,6 +55,7 @@ public class CheckoutActivity extends Activity {
     private String retailer, productUrl;
     private boolean assistPending;
     private android.media.Ringtone alarm;
+    private final Runnable alarmTimeout = this::stopAlarm;
     private boolean assisting;
 
     public static Intent intent(Context c, String url, String retailer, boolean assist) {
@@ -220,7 +221,9 @@ public class CheckoutActivity extends Activity {
                     .build());
             if (Build.VERSION.SDK_INT >= 28) alarm.setLooping(true);
             alarm.play();
-            web.postDelayed(this::stopAlarm, ALARM_MS);
+            // A second alert restarts the minute (the first alert's timeout would cut this one short).
+            web.removeCallbacks(alarmTimeout);
+            web.postDelayed(alarmTimeout, ALARM_MS);
         } catch (Exception e) {
             alarm = null;
         }

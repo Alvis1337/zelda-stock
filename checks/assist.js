@@ -13,7 +13,7 @@
     'Amazon': 'https://www.amazon.com/gp/cart/view.html',
     'Nintendo': 'https://www.nintendo.com/us/cart/'
   };
-  var OWN = { 'Best Buy': /best\s*buy/i, 'Target': /target/i, 'Walmart': /walmart/i, 'Amazon': /^\s*amazon(\.com)?\b/i, 'Nintendo': /nintendo/i };
+  var OWN = { 'Best Buy': /best\s*buy/i, 'Target': /target/i, 'Walmart': /walmart/i, 'Amazon': /^\s*amazon(\.com)?\b(?!\s*(resale|warehouse))/i, 'Nintendo': /nintendo/i };
   try {
     if (!CART[R]) { say(R + ': in-store only. Use the page to reserve or check stores.'); return; }
     if (zsBlocked()) { say('Bot check on the page: solve it, then tap Add to cart.'); return; }

@@ -58,8 +58,13 @@ export function applyRun(prev, rows, { ran, at, blockedAfter }) {
     now.add(k);
   }
   // A retailer that couldn't be read this run keeps its in-stock rows, so a blip
-  // between two in-stock reads doesn't ring the alarm twice.
-  for (const k of before) if (unreadable.has(k.split('|')[0])) now.add(k);
+  // between two in-stock reads doesn't ring the alarm twice. That includes a slow
+  // retailer sitting this run out whose last (reused) read was unreadable.
+  const blip = new Set(unreadable);
+  for (const retailer of new Set(rows.map((r) => r.retailer))) {
+    if (!ran.includes(retailer) && !rows.some((r) => r.retailer === retailer && DEFINITIVE.has(r.status))) blip.add(retailer);
+  }
+  for (const k of before) if (blip.has(k.split('|')[0])) now.add(k);
 
   for (const retailer of ran) {
     const streak = state.unverifiedStreak[retailer] || 0;
