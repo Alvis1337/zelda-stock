@@ -104,13 +104,19 @@ export function applyRun(prev, rows, { ran, at, blockedAfter }) {
   // The window runs from the last in-stock read, not the alert: a key that stays in stock
   // for an hour and then misses one read must not ring again.
   for (const k of now) state.alerted[k] = at;
-  // But only a read with a failed part keeps the window open for a key that's gone: when every
-  // row from that retailer read cleanly, it really sold out, and a second wave should ring.
-  const clean = new Set(ran.filter((r) => {
-    const mine = rows.filter((x) => x.retailer === r);
-    return mine.length && mine.every((x) => DEFINITIVE.has(x.status));
-  }));
-  for (const k of Object.keys(state.alerted)) if (!now.has(k) && clean.has(k.split('|')[0])) delete state.alerted[k];
+  // A key that's gone stays in the window unless the read shows it sold out, so a second
+  // wave rings. A missing row isn't proof (the pickup tile didn't match, the cards didn't
+  // render); proof is the same key reading OUT OF STOCK, or, for a store, every store
+  // lookup for that product answering (Target and GameStop list only stores with stock).
+  const soldOut = new Set(rows.filter((r) => r.status === 'OUT OF STOCK').map(key));
+  for (const k of Object.keys(state.alerted)) {
+    if (now.has(k)) continue;
+    const [retailer, product, where] = k.split('|');
+    const stores = rows.filter((r) => r.retailer === retailer && r.product === product && r.where !== 'online');
+    const storesClean = where !== 'online' && ran.includes(retailer) && stores.length > 0 &&
+      stores.every((r) => DEFINITIVE.has(r.status));
+    if (soldOut.has(k) || storesClean) delete state.alerted[k];
+  }
   state.runsSinceHeartbeat = (prev.runsSinceHeartbeat || 0) + 1;
   return { state, events };
 }
