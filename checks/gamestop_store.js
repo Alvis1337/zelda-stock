@@ -84,7 +84,8 @@
     }
     // No new answer: what's on screen is still the answer for the location GameStop guessed,
     // unless that answer was already for our ZIP (the search then re-renders the same list).
-    if (!fresh && answered(text) && text.indexOf(z) >= 0) fresh = true;
+    // ("within 100 miles of 45780", not a store address that happens to be in that ZIP).
+    if (!fresh && answered(text) && new RegExp('\\b(within|near|of)\\s+' + z + '\\b', 'i').test(text)) fresh = true;
     if (!fresh) return done('UNVERIFIED', 'stores near ' + z, 'GameStop did not answer the search for ' + z);
     var none = text.replace(/\n/g, ' ').match(/no store within (\d+) miles of (\d{5})[^.]*inventory/i);
     if (none && none[2] !== z) return done('UNVERIFIED', 'stores near ' + z, 'GameStop answered for ' + none[2] + ', not ' + z);

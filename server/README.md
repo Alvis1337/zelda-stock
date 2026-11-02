@@ -49,7 +49,8 @@ Differences from the design:
 - One alert per retailer per run (online first, the other places listed in it),
   since each alert opens checkout and adds one to the cart. A key that read in
   stock in the last 30 minutes doesn't alert again, so one failed part of a read
-  (a ZIP's store lookup, the pickup tile) doesn't ring twice. An alert that no channel
+  (a ZIP's store lookup, the pickup tile) doesn't ring twice. A read where every
+  row came back clean ends that window, so a sellout and a second wave rings again. An alert that no channel
   delivered is forgotten, so the next run tries again.
 - The app adds at most one per product page per 20 minutes; a later alert for it
   rings and opens the page but doesn't add another.

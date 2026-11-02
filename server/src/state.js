@@ -104,6 +104,13 @@ export function applyRun(prev, rows, { ran, at, blockedAfter }) {
   // The window runs from the last in-stock read, not the alert: a key that stays in stock
   // for an hour and then misses one read must not ring again.
   for (const k of now) state.alerted[k] = at;
+  // But only a read with a failed part keeps the window open for a key that's gone: when every
+  // row from that retailer read cleanly, it really sold out, and a second wave should ring.
+  const clean = new Set(ran.filter((r) => {
+    const mine = rows.filter((x) => x.retailer === r);
+    return mine.length && mine.every((x) => DEFINITIVE.has(x.status));
+  }));
+  for (const k of Object.keys(state.alerted)) if (!now.has(k) && clean.has(k.split('|')[0])) delete state.alerted[k];
   state.runsSinceHeartbeat = (prev.runsSinceHeartbeat || 0) + 1;
   return { state, events };
 }
